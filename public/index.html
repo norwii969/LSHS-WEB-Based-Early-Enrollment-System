@@ -31,9 +31,12 @@
       <h2>Lemery Senior High School Grade 11 Early Enrollment System</h2>
       <p>Mabilis at madaling online enrollment para sa mas maayos at mabilis na proseso ng pagpaparehistro.</p>
     </div>
-    <div class="hero-image-wrapper">
-      <div class="shape-bg"></div>
-      <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=800" alt="LSHS Students" class="hero-img">
+    
+    <!-- Red Slanted Lines / Abstract Design -->
+    <div class="hero-design-wrapper">
+      <div class="slanted-line line-main"></div>
+      <div class="slanted-line line-sub"></div>
+      <div class="slanted-line line-gold"></div>
     </div>
   </section>
 
@@ -70,40 +73,47 @@
         <div class="form-row">
           <div class="form-group">
             <label for="lrn">LRN</label>
-            <input type="text" id="lrn" placeholder="Enter LRN" required>
+            <input type="text" id="lrn" name="lrn" placeholder="Enter LRN" required>
           </div>
           <div class="form-group">
             <label for="fullName">Full Name</label>
-            <input type="text" id="fullName" placeholder="Enter Full Name" required>
+            <input type="text" id="fullName" name="fullName" placeholder="Enter Full Name" required>
           </div>
         </div>
 
         <div class="form-group">
           <label for="address">Address</label>
-          <input type="text" id="address" placeholder="Enter Address" required>
+          <input type="text" id="address" name="address" placeholder="Enter Address" required>
         </div>
 
         <div class="form-group">
           <label for="gmail">Gmail</label>
-          <input type="email" id="gmail" placeholder="Enter Gmail" required>
+          <input type="email" id="gmail" name="gmail" placeholder="Enter Gmail Address" required>
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label for="contact">Contact Number</label>
-            <input type="text" id="contact" placeholder="Enter Contact Number" required>
+            <input type="text" id="contact" name="contact" placeholder="Enter Contact Number" required>
           </div>
           <div class="form-group">
             <label for="prevSchool">Previous School</label>
-            <input type="text" id="prevSchool" placeholder="Enter Previous School" required>
+            <input type="text" id="prevSchool" name="prevSchool" placeholder="Enter Previous School" required>
           </div>
         </div>
 
+        <!-- Working Clickable Track Selection -->
         <div class="track-selection">
           <label>Choose curriculum track:</label>
-          <div class="track-buttons">
-            <button type="button" class="track-btn active">Academic Track</button>
-            <button type="button" class="track-btn">Technical-Vocational-Livelihood (TVL) Track</button>
+          <div class="track-options">
+            <label class="track-label">
+              <input type="radio" name="track" value="Academic Track" checked>
+              <span class="track-card">Academic Track</span>
+            </label>
+            <label class="track-label">
+              <input type="radio" name="track" value="TVL Track">
+              <span class="track-card">Technical-Vocational-Livelihood (TVL) Track</span>
+            </label>
           </div>
         </div>
 
