@@ -23,6 +23,9 @@ const db = mysql.createConnection({
     rejectUnauthorized: false
   }
 });
+    rejectUnauthorized: false
+  }
+});
 
 db.connect(err => {
     if (err) console.error('Database Connection Error:', err);
