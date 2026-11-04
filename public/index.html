@@ -53,11 +53,11 @@
         </div>
         <div class="step-item">
           <span class="step-num">02</span>
-          <p><strong>Fill out the Form</strong></p>
+          <p><strong>Fill out Personal Info</strong></p>
         </div>
         <div class="step-item">
           <span class="step-num">03</span>
-          <p><strong>Choose your Track</strong></p>
+          <p><strong>Select Track & Electives</strong></p>
         </div>
         <div class="step-item">
           <span class="step-num">04</span>
@@ -114,6 +114,35 @@
               <input type="radio" name="track" value="TVL Track">
               <span class="track-card">Technical-Vocational-Livelihood (TVL) Track</span>
             </label>
+          </div>
+        </div>
+
+        <!-- NEW CURRICULUM: Electives Selection Per Term -->
+        <div class="electives-section">
+          <h3>New Curriculum Electives</h3>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="term1Elective">Preferred Elective (Term 1)</label>
+              <select id="term1Elective" name="term1Elective" required>
+                <option value="" disabled selected>Select Term 1 Elective</option>
+                <option value="Computer Programming / ICT">Computer Programming / ICT</option>
+                <option value="Basic Entrepreneurship">Basic Entrepreneurship</option>
+                <option value="Journalism & Creative Writing">Journalism & Creative Writing</option>
+                <option value="Speech and Stage Arts">Speech and Stage Arts</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="term2Elective">Preferred Elective (Term 2)</label>
+              <select id="term2Elective" name="term2Elective" required>
+                <option value="" disabled selected>Select Term 2 Elective</option>
+                <option value="Web Development Basics">Web Development Basics</option>
+                <option value="Financial Literacy & Accounting">Financial Literacy & Accounting</option>
+                <option value="Environmental Science">Environmental Science</option>
+                <option value="Digital Media & Arts">Digital Media & Arts</option>
+              </select>
+            </div>
           </div>
         </div>
 
