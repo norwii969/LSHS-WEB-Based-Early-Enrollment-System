@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Magpalabas ng Success Notification pagkatapos i-submit ang form
-const enrollmentForm = document.getElementById('enrollmentForm'); // Siguraduhing tugma sa ID ng form mo sa HTML
+ enrollmentForm = document.getElementById('enrollmentForm'); // Siguraduhing tugma sa ID ng form mo sa HTML
 
 if (enrollmentForm) {
     enrollmentForm.addEventListener('submit', function(e) {
