@@ -375,3 +375,84 @@ body {
   letter-spacing: 0.5px !important;
   line-height: 1 !important;
 }
+
+/* ==========================================================================
+   New Background Slanted Lines (Nasa Likod & Nakatagilid)
+   ========================================================================== */
+
+.hero-section {
+  position: relative !important;
+  z-index: 1 !important;
+  overflow: hidden !important;
+}
+
+/* Container para sa lines na nasa likod ng texts */
+.hero-bg-lines {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: -1 !important; /* Itinatago sa likod ng lahat ng text/content */
+  pointer-events: none !important; /* Hindi makakaapekto sa clicks */
+  opacity: 0.85 !important;
+}
+
+/* Base style para sa nakatagilid na background strips */
+.bg-line-main, .bg-line-sub, .bg-line-gold {
+  position: absolute !important;
+  transform: rotate(-35deg) !important; /* Tagilid */
+  border-radius: 40px !important;
+}
+
+/* Malaking Maroon Line sa dulo */
+.bg-line-main {
+  width: 140px !important;
+  height: 550px !important;
+  background: linear-gradient(135deg, #800000 0%, #5a0000 100%) !important;
+  right: 15% !important;
+  top: -80px !important;
+  opacity: 0.12 !important; /* Sobrang aninag/light para hindi makagulo */
+}
+
+/* Katabing darker maroon stripe */
+.bg-line-sub {
+  width: 80px !important;
+  height: 480px !important;
+  background: #4a0000 !important;
+  right: 28% !important;
+  top: -30px !important;
+  opacity: 0.08 !important;
+}
+
+/* Gold stripe sa background */
+.bg-line-gold {
+  width: 30px !important;
+  height: 380px !important;
+  background: #cca43b !important;
+  right: 8% !important;
+  top: 20px !important;
+  opacity: 0.15 !important;
+}
+
+/* Media query para mapanatili ang tamang pwesto kahit sa mobile screen */
+@media (max-width: 768px) {
+  .hero-bg-lines {
+    opacity: 0.5 !important; /* Mas aninag pa sa mobile */
+  }
+  .bg-line-main {
+    width: 90px !important;
+    height: 350px !important;
+    right: 5% !important;
+  }
+  .bg-line-sub {
+    width: 50px !important;
+    height: 300px !important;
+    right: 20% !important;
+  }
+  .bg-line-gold {
+    width: 15px !important;
+    height: 220px !important;
+    right: 2% !important;
+  }
+}
