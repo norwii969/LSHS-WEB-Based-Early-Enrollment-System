@@ -456,3 +456,13 @@ body {
     right: 2% !important;
   }
 }
+/* TULUYAN NATING ITAGO ANG LUMANG FLOATING BLOCKS GRAPHICS */
+.hero-design-wrapper,
+.slanted-line,
+.line-main,
+.line-sub,
+.line-gold {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
