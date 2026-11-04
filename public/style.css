@@ -352,24 +352,24 @@ body {
   color: #ffffff;
   border:
 
-  /* Forced Logo & Text Override */
+ /* Perfect Centering & Resized Logo */
 .logo-container {
   display: flex !important;
-  align-items: center !important;
-  gap: 10px !important;
+  align-items: center !important; /* Pantay na pantay sa gitna horizontally */
+  gap: 12px !important;
 }
 
 .school-logo {
-  width: 40px !important;
-  height: 40px !important;
-  max-width: 40px !important;
-  max-height: 40px !important;
+  width: 52px !important; /* Pinalaki nang kaunti mula 40px */
+  height: 52px !important;
   object-fit: contain !important;
+  display: block !important;
 }
 
 .logo-text {
-  font-size: 1.05rem !important;
+  font-size: 1.1rem !important;
   font-weight: 800 !important;
   color: #5a0000 !important; /* Dark Maroon */
   letter-spacing: 0.5px !important;
+  line-height: 1 !important; /* Para hindi lumaylay o umakyat ang text */
 }
