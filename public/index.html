@@ -1,217 +1,117 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grade 11 Early Enrollment System - Lemery Senior High School</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LSHS Early Enrollment System</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>S
+<body>
 
-    <!-- Header Banner -->
-    <header class="main-header">
-        <div class="header-container">
-            <div class="branding">
-                <!-- LINE 15: Palitan ang logo.png ng logo.jpg -->
-<img src="logo.jpg" alt="LSHS Logo" class="school-logo">
-                <div class="title-container">
-                    <span class="sub-header">LEMERY SENIOR HIGH SCHOOL</span>
-                    <h1 class="main-title">GRADE 11<br>EARLY ENROLLMENT SYSTEM</h1>
-                </div>
-            </div>
-            <button id="personnelLoginBtn" class="login-link-btn">➔ Personnel Login</button>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="logo">LSHS Online</div>
+    <ul class="nav-links">
+      <li><a href="#">Home</a></li>
+      <li><a href="#">Student Process</a></li>
+      <li><a href="#">Guidance</a></li>
+      <li><a href="#">About Us</a></li>
+    </ul>
+    <div class="nav-buttons">
+      <a href="#" class="btn-secondary">Personnel Login</a>
+      <a href="#enroll-form" class="btn-primary">Enroll Now</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-content">
+      <span class="badge">S.Y. 2026-2027</span>
+      <h1>Start Your Journey<br>with <span>LSHS</span></h1>
+      <h2>Lemery Senior High School Grade 11 Early Enrollment System</h2>
+      <p>Mabilis at madaling online enrollment para sa mas maayos at mabilis na proseso ng pagpaparehistro.</p>
+    </div>
+    <div class="hero-image-wrapper">
+      <div class="shape-bg"></div>
+      <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=800" alt="LSHS Students" class="hero-img">
+    </div>
+  </section>
+
+  <!-- Split Section (Process + Form) -->
+  <section class="main-container" id="enroll-form">
+    
+    <!-- Left: Step-by-Step Process Card -->
+    <div class="process-card">
+      <h3>Step-by-Step<br>Enrollment Process</h3>
+      <div class="step-list">
+        <div class="step-item">
+          <span class="step-num">01</span>
+          <p><strong>Prepare LRN & Documents</strong></p>
         </div>
-    </header>
-
-    <!-- Main Container -->
-    <main class="main-container">
-        
-        <div class="process-card" id="studentSection">
-            <div class="card-header">
-                <span class="user-icon">👤</span> STUDENT PROCESS
-            </div>
-
-            <div class="card-body">
-                <h2 class="form-title">Get Started: Early Enrollment Form</h2>
-                
-                <form id="enrollmentForm">
-                    <!-- Row 1 -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="lrn">LRN</label>
-                            <input type="text" id="lrn" placeholder="LRN" required maxlength="12">
-                        </div>
-                        <div class="form-group">
-                            <label for="fullName">Full Name</label>
-                            <input type="text" id="fullName" placeholder="Full Name" required>
-                        </div>
-                    </div>
-
-                    <!-- Row 2 -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="address">Address</label>
-                            <input type="text" id="address" placeholder="Address" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="gmail">Gmail</label>
-                            <input type="email" id="gmail" placeholder="Gmail Address" required>
-                        </div>
-                    </div>
-
-                    <!-- Row 3 -->
-                    <div class="form-row">
-                        <div class="form-group icon-input">
-                            <label for="contactNumber">Contact Number</label>
-                            <div class="input-wrapper">
-                                <span class="phone-icon">📞</span>
-                                <input type="tel" id="contactNumber" placeholder="Contact Number" required>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="prevSchool">Previous School</label>
-                            <input type="text" id="prevSchool" placeholder="Previous School" required>
-                        </div>
-                    </div>
-
-                    <!-- Curriculum Track Selection -->
-                    <div class="track-section">
-                        <label class="section-label">Choose curriculum track:</label>
-                        <div class="track-buttons">
-                            <input type="radio" id="academic" name="track" value="Academic Track" hidden required>
-                            <label for="academic" class="track-card-btn">Academic Track</label>
-
-                            <input type="radio" id="techpro" name="track" value="Technical-Professional (TechPro)" hidden required>
-                            <label for="techpro" class="track-card-btn">Technical-Professional (TechPro)</label>
-                        </div>
-                    </div>
-
-                    <!-- Dynamic Cluster & Term Electives Area -->
-                    <div id="electiveArea" class="hidden">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="electiveCluster">Elective Cluster</label>
-                                <select id="electiveCluster" required>
-                                    <option value="">-- Select Elective Cluster --</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- 3-Term Preferred Electives -->
-                        <div class="term-electives-box">
-                            <h4 class="term-box-title">Select Preferred Electives Per Term</h4>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="term1Elective">Term 1 Preferred Elective</label>
-                                    <select id="term1Elective" required disabled>
-                                        <option value="">-- Select Cluster First --</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label for="term2Elective">Term 2 Preferred Elective</label>
-                                    <select id="term2Elective" required disabled>
-                                        <option value="">-- Select Cluster First --</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label for="term3Elective">Term 3 Preferred Elective</label>
-                                    <select id="term3Elective" required disabled>
-                                        <option value="">-- Select Cluster First --</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="submit-form-btn">Submit Enrollment Form</button>
-                </form>
-
-                <!-- Stepper -->
-                <div class="process-stepper">
-                    <div class="step-item active" id="step1">
-                        <div class="step-circle">✓</div>
-                        <span class="step-label">Fill out form</span>
-                    </div>
-                    <div class="step-line" id="line1"></div>
-                    <div class="step-item" id="step2">
-                        <div class="step-circle">•</div>
-                        <span class="step-label">Choose Track & Electives</span>
-                    </div>
-                    <div class="step-line" id="line2"></div>
-                    <div class="step-item" id="step3">
-                        <div class="step-circle">•</div>
-                        <span class="step-label">Submit</span>
-                    </div>
-                </div>
-            </div>
+        <div class="step-item">
+          <span class="step-num">02</span>
+          <p><strong>Fill out the Form</strong></p>
         </div>
-
-        <!-- Registrar / Personnel View -->
-        <div class="process-card hidden" id="personnelView">
-            <div class="card-header">
-                <span class="user-icon">💼</span> REGISTRAR DASHBOARD
-                <button id="logoutBtn" class="logout-btn">Logout</button>
-            </div>
-            <div class="card-body">
-                <h2>Submitted Applications</h2>
-                <div class="table-wrapper">
-                    <table id="applicantsTable">
-                        <thead>
-                            <tr>
-                                <th>Ref No.</th>
-                                <th>LRN</th>
-                                <th>Name</th>
-                                <th>Track</th>
-                                <th>Cluster</th>
-                                <th>Term 1 Elective</th>
-                                <th>Term 2 Elective</th>
-                                <th>Term 3 Elective</th>
-                                <th>Date</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
+        <div class="step-item">
+          <span class="step-num">03</span>
+          <p><strong>Choose your Track</strong></p>
         </div>
-    </main>
-
-    <!-- Personnel Login Modal -->
-    <div id="loginModal" class="modal-overlay">
-        <div class="modal-content">
-            <span class="modal-close" id="closeModal">&times;</span>
-            <div class="modal-header">
-                <span class="user-icon">👥</span>
-                <h3>SCHOOL PERSONNEL PROCESS</h3>
-            </div>
-            <div class="modal-body">
-                <h4 class="modal-title">Personnel Login</h4>
-                <form id="loginForm">
-                    <div class="form-group">
-                        <label for="username">Username / Email</label>
-                        <input type="text" id="username" placeholder="Username / Email" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" placeholder="Password" required>
-                    </div>
-                    <button type="submit" class="modal-login-btn">Login</button>
-                </form>
-                <p class="modal-footer-note">Search records, review documents (Form 138, Birth Certificate), and update enrollment status.</p>
-            </div>
+        <div class="step-item">
+          <span class="step-num">04</span>
+          <p><strong>Submit & Wait for Confirmation</strong></p>
         </div>
+      </div>
     </div>
 
-    <!-- Success Modal -->
-    <div id="successModal" class="modal-overlay">
-        <div class="modal-content success-box">
-            <h3>Enrollment Submitted!</h3>
-            <p>Your Reference Number is:</p>
-            <h2 id="refDisplay">LSHS-2026-0000</h2>
-            <button id="closeSuccess" class="modal-login-btn">Close</button>
+    <!-- Right: Enrollment Form -->
+    <div class="form-card">
+      <h2>Enrollment Form</h2>
+      <form id="enrollmentForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="lrn">LRN</label>
+            <input type="text" id="lrn" placeholder="Enter LRN" required>
+          </div>
+          <div class="form-group">
+            <label for="fullName">Full Name</label>
+            <input type="text" id="fullName" placeholder="Enter Full Name" required>
+          </div>
         </div>
+
+        <div class="form-group">
+          <label for="address">Address</label>
+          <input type="text" id="address" placeholder="Enter Address" required>
+        </div>
+
+        <div class="form-group">
+          <label for="gmail">Gmail</label>
+          <input type="email" id="gmail" placeholder="Enter Gmail" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="contact">Contact Number</label>
+            <input type="text" id="contact" placeholder="Enter Contact Number" required>
+          </div>
+          <div class="form-group">
+            <label for="prevSchool">Previous School</label>
+            <input type="text" id="prevSchool" placeholder="Enter Previous School" required>
+          </div>
+        </div>
+
+        <div class="track-selection">
+          <label>Choose curriculum track:</label>
+          <div class="track-buttons">
+            <button type="button" class="track-btn active">Academic Track</button>
+            <button type="button" class="track-btn">Technical-Vocational-Livelihood (TVL) Track</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit">Submit Enrollment</button>
+      </form>
     </div>
 
-    <script src="script.js"></script>
+  </section>
+
 </body>
 </html>
