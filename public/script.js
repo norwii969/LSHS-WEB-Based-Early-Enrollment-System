@@ -301,12 +301,9 @@ document.addEventListener('DOMContentLoaded', () => {
     observer.observe(document.body, { childList: true, subtree: true });
 });
 
-// Magpalabas ng Success Notification pagkatapos i-submit ang form
- enrollmentForm = document.getElementById('enrollmentForm'); // Siguraduhing tugma sa ID ng form mo sa HTML
-
-if (enrollmentForm) {
-    enrollmentForm.addEventListener('submit', function(e) {
-        // Magpapakita ng pop-up message kapag na-click ang submit
+// Direktang alert kapag na-click ang submit button
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.type === 'submit') {
         alert('🎉 Submitted Successfully! Naitala na ang iyong early enrollment application.');
-    });
-}
+    }
+});
