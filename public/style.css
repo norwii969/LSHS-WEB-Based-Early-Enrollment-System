@@ -36,9 +36,10 @@ body {
 }
 
 .logo {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 800;
   color: var(--text-dark);
+  letter-spacing: 0.5px;
 }
 
 .nav-links {
@@ -100,7 +101,7 @@ body {
 }
 
 .hero-content {
-  max-width: 520px;
+  max-width: 580px;
 }
 
 .badge {
@@ -114,14 +115,15 @@ body {
 }
 
 .hero-content h1 {
-  font-size: 2.8rem;
+  font-size: 2.2rem;
   font-weight: 800;
-  line-height: 1.15;
+  line-height: 1.2;
   margin: 16px 0 10px;
 }
 
 .hero-content h1 span {
   color: var(--primary-maroon);
+  display: inline-block;
 }
 
 .hero-content h2 {
@@ -136,10 +138,10 @@ body {
   font-size: 0.95rem;
 }
 
-/* Red Slanted Design Lines */
+/* Red Slanted Lines */
 .hero-design-wrapper {
   position: relative;
-  width: 400px;
+  width: 380px;
   height: 280px;
   display: flex;
   justify-content: center;
@@ -244,6 +246,10 @@ body {
   gap: 16px;
 }
 
+.form-row.3-cols {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -258,10 +264,10 @@ body {
 }
 
 .form-group input, .form-group select {
-  padding: 12px 16px;
+  padding: 12px 14px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   transition: all 0.2s;
   background-color: #fafafa;
 }
@@ -320,7 +326,7 @@ body {
   box-shadow: 0 4px 12px rgba(128, 0, 0, 0.2);
 }
 
-/* New Electives Styling */
+/* Electives Styling */
 .electives-section {
   background-color: #fcfcfc;
   padding: 18px;
@@ -366,7 +372,7 @@ body {
   .main-container {
     grid-template-columns: 1fr;
   }
-  .form-row {
+  .form-row, .form-row.3-cols {
     grid-template-columns: 1fr;
   }
   .track-options {

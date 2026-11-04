@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LSHS Early Enrollment System</title>
+  <title>Lemery Senior High School Early Enrollment System</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <!-- Navbar -->
   <nav class="navbar">
-    <div class="logo">LSHS Online</div>
+    <div class="logo">LEMERY SENIOR HIGH SCHOOL</div>
     <ul class="nav-links">
       <li><a href="#">Home</a></li>
       <li><a href="#">Student Process</a></li>
@@ -27,12 +27,12 @@
   <section class="hero-section">
     <div class="hero-content">
       <span class="badge">S.Y. 2026-2027</span>
-      <h1>Start Your Journey<br>with <span>LSHS</span></h1>
-      <h2>Lemery Senior High School Grade 11 Early Enrollment System</h2>
+      <h1>Start Your Journey<br>with <span>LEMERY SENIOR HIGH SCHOOL</span></h1>
+      <h2>Grade 11 Early Enrollment System</h2>
       <p>Mabilis at madaling online enrollment para sa mas maayos at mabilis na proseso ng pagpaparehistro.</p>
     </div>
     
-    <!-- Red Slanted Lines / Abstract Design -->
+    <!-- Red Slanted Lines Design -->
     <div class="hero-design-wrapper">
       <div class="slanted-line line-main"></div>
       <div class="slanted-line line-sub"></div>
@@ -57,7 +57,7 @@
         </div>
         <div class="step-item">
           <span class="step-num">03</span>
-          <p><strong>Select Track & Electives</strong></p>
+          <p><strong>Select Track & Electives per Term</strong></p>
         </div>
         <div class="step-item">
           <span class="step-num">04</span>
@@ -102,7 +102,7 @@
           </div>
         </div>
 
-        <!-- Working Clickable Track Selection -->
+        <!-- Track Selection -->
         <div class="track-selection">
           <label>Choose curriculum track:</label>
           <div class="track-options">
@@ -117,15 +117,15 @@
           </div>
         </div>
 
-        <!-- NEW CURRICULUM: Electives Selection Per Term -->
+        <!-- NEW CURRICULUM: Electives Selection (3 Terms) -->
         <div class="electives-section">
-          <h3>New Curriculum Electives</h3>
+          <h3>New Curriculum Electives (3 Terms)</h3>
           
-          <div class="form-row">
+          <div class="form-row 3-cols">
             <div class="form-group">
               <label for="term1Elective">Preferred Elective (Term 1)</label>
               <select id="term1Elective" name="term1Elective" required>
-                <option value="" disabled selected>Select Term 1 Elective</option>
+                <option value="" disabled selected>Select Term 1</option>
                 <option value="Computer Programming / ICT">Computer Programming / ICT</option>
                 <option value="Basic Entrepreneurship">Basic Entrepreneurship</option>
                 <option value="Journalism & Creative Writing">Journalism & Creative Writing</option>
@@ -136,11 +136,22 @@
             <div class="form-group">
               <label for="term2Elective">Preferred Elective (Term 2)</label>
               <select id="term2Elective" name="term2Elective" required>
-                <option value="" disabled selected>Select Term 2 Elective</option>
+                <option value="" disabled selected>Select Term 2</option>
                 <option value="Web Development Basics">Web Development Basics</option>
                 <option value="Financial Literacy & Accounting">Financial Literacy & Accounting</option>
                 <option value="Environmental Science">Environmental Science</option>
                 <option value="Digital Media & Arts">Digital Media & Arts</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="term3Elective">Preferred Elective (Term 3)</label>
+              <select id="term3Elective" name="term3Elective" required>
+                <option value="" disabled selected>Select Term 3</option>
+                <option value="Advanced Computer Science">Advanced Computer Science</option>
+                <option value="Business Plan & Innovation">Business Plan & Innovation</option>
+                <option value="Research & Data Analytics">Research & Data Analytics</option>
+                <option value="Work Immersion Elective">Work Immersion Elective</option>
               </select>
             </div>
           </div>
