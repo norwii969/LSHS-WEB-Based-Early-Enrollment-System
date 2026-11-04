@@ -30,13 +30,13 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 8%;
+  padding: 16px 6%;
   background: #ffffff;
   border-bottom: 1px solid var(--border-color);
 }
 
 .logo {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 800;
   color: var(--text-dark);
   letter-spacing: 0.5px;
@@ -45,13 +45,13 @@ body {
 .nav-links {
   display: flex;
   list-style: none;
-  gap: 28px;
+  gap: 24px;
 }
 
 .nav-links a {
   text-decoration: none;
   color: var(--text-muted);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 500;
   transition: color 0.2s;
 }
@@ -62,27 +62,27 @@ body {
 
 .nav-buttons {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 
 .btn-secondary {
   text-decoration: none;
-  padding: 10px 18px;
+  padding: 8px 14px;
   border: 1px solid #ccc;
   border-radius: 8px;
   color: var(--text-dark);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .btn-primary {
   text-decoration: none;
-  padding: 10px 18px;
+  padding: 8px 14px;
   background-color: var(--primary-maroon);
   border-radius: 8px;
   color: #ffffff;
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   transition: background 0.2s;
 }
 
@@ -95,13 +95,15 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 60px 8%;
-  gap: 40px;
+  padding: 40px 6%;
+  gap: 30px;
   overflow: hidden;
+  position: relative;
 }
 
 .hero-content {
   max-width: 580px;
+  z-index: 2;
 }
 
 .badge {
@@ -118,7 +120,7 @@ body {
   font-size: 2.2rem;
   font-weight: 800;
   line-height: 1.2;
-  margin: 16px 0 10px;
+  margin: 14px 0 8px;
 }
 
 .hero-content h1 span {
@@ -127,115 +129,116 @@ body {
 }
 
 .hero-content h2 {
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: var(--text-dark);
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .hero-content p {
   color: var(--text-muted);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
-/* Red Slanted Lines */
+/* Red Slanted Design Lines (Nakatagilid sa gilid/ilalim) */
 .hero-design-wrapper {
   position: relative;
-  width: 380px;
-  height: 280px;
+  width: 280px;
+  height: 200px;
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 1;
 }
 
 .slanted-line {
   position: absolute;
-  border-radius: 20px;
-  transform: rotate(-25deg);
+  border-radius: 12px;
+  transform: rotate(-35deg);
 }
 
 .line-main {
-  width: 140px;
-  height: 280px;
+  width: 90px;
+  height: 200px;
   background: var(--primary-maroon);
-  right: 60px;
-  box-shadow: 0 10px 25px rgba(128, 0, 0, 0.25);
+  right: 40px;
+  box-shadow: 0 10px 20px rgba(128, 0, 0, 0.15);
 }
 
 .line-sub {
-  width: 70px;
-  height: 220px;
+  width: 45px;
+  height: 160px;
   background: var(--dark-maroon);
-  right: 220px;
+  right: 145px;
   opacity: 0.85;
 }
 
 .line-gold {
-  width: 25px;
-  height: 180px;
+  width: 16px;
+  height: 130px;
   background: var(--accent-gold);
-  right: 20px;
+  right: 15px;
 }
 
 /* Main Container (Split Layout) */
 .main-container {
   display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 30px;
-  padding: 0 8% 80px;
+  grid-template-columns: 300px 1fr;
+  gap: 24px;
+  padding: 0 6% 60px;
 }
 
 /* Left Process Card */
 .process-card {
   background-color: var(--soft-pink);
-  padding: 32px 24px;
+  padding: 28px 20px;
   border-radius: var(--radius);
 }
 
 .process-card h3 {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: var(--text-dark);
-  margin-bottom: 28px;
+  margin-bottom: 24px;
   font-weight: 800;
 }
 
 .step-list {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .step-item {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: 12px;
 }
 
 .step-num {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 800;
   color: var(--primary-maroon);
 }
 
 .step-item p {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-dark);
 }
 
 /* Right Form Card */
 .form-card {
   background: #ffffff;
-  padding: 36px;
+  padding: 30px;
   border-radius: var(--radius);
   border: 1px solid var(--border-color);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
 }
 
 .form-card h2 {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 800;
-  margin-bottom: 24px;
-  padding-bottom: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 8px;
   border-bottom: 2px solid var(--primary-maroon);
   display: inline-block;
 }
@@ -243,7 +246,7 @@ body {
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 14px;
 }
 
 .form-row.3-cols {
@@ -253,18 +256,18 @@ body {
 .form-group {
   display: flex;
   flex-direction: column;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .form-group label {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
   color: var(--text-dark);
 }
 
 .form-group input, .form-group select {
-  padding: 12px 14px;
+  padding: 10px 12px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 0.85rem;
@@ -281,20 +284,20 @@ body {
 
 /* Track Selection */
 .track-selection {
-  margin: 10px 0 20px;
+  margin: 10px 0 18px;
 }
 
 .track-selection label {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
   display: block;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .track-options {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
 }
 
 .track-label {
@@ -308,10 +311,10 @@ body {
 .track-card {
   display: block;
   text-align: center;
-  padding: 14px;
+  padding: 12px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
   background: #ffffff;
   color: var(--text-dark);
@@ -329,56 +332,22 @@ body {
 /* Electives Styling */
 .electives-section {
   background-color: #fcfcfc;
-  padding: 18px;
+  padding: 16px;
   border-radius: 10px;
   border: 1px dashed #d1d5db;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .electives-section h3 {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--primary-maroon);
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .btn-submit {
   width: 100%;
-  padding: 14px;
+  padding: 12px;
   background: var(--primary-maroon);
   color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  font-weight: 700;
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-submit:hover {
-  background: var(--dark-maroon);
-}
-
-/* Responsive Rules */
-@media (max-width: 900px) {
-  .hero-section {
-    flex-direction: column;
-    text-align: center;
-  }
-  .hero-design-wrapper {
-    width: 100%;
-    height: 180px;
-  }
-  .main-container {
-    grid-template-columns: 1fr;
-  }
-  .form-row, .form-row.3-cols {
-    grid-template-columns: 1fr;
-  }
-  .track-options {
-    grid-template-columns: 1fr;
-  }
-  .nav-links {
-    display: none;
-  }
-}
+  border:
