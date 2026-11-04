@@ -82,7 +82,59 @@ const electiveData = {
         ]
     }
 };
+// Kunin ang mga elements para sa track selection at elective dropdowns
+const trackButtons = document.querySelectorAll('.track-btn'); // O kung ano mang class/ID ang gamit mo sa buttons
+const strandSelect = document.getElementById('strandSelect'); // Dropdown para sa strands (STEM, ICT, etc.)
+const electiveSelects = [
+    document.getElementById('term1Elective'),
+    document.getElementById('term2Elective'),
+    document.getElementById('term3Elective')
+];
 
+let selectedTrack = "Academic Track"; // Default
+
+// Kapag pinili ang Academic Track
+function handleTrackChange(trackName) {
+    selectedTrack = trackName;
+    
+    // I-filter ang strand dropdown para sa napiling track lamang
+    if (strandSelect) {
+        strandSelect.innerHTML = '<option value="">Select Strand / Specialization</option>';
+        const strands = Object.keys(electiveData[selectedTrack] || {});
+        
+        strands.forEach(strand => {
+            const opt = document.createElement('option');
+            opt.value = strand;
+            opt.textContent = strand;
+            strandSelect.appendChild(opt);
+        });
+    }
+    
+    // Linisin din ang mga elective dropdowns kapag nagpalit ng track
+    electiveSelects.forEach(sel => {
+        if (sel) sel.innerHTML = '<option value="">Select Elective</option>';
+    });
+}
+
+// Kapag nagbago ang napiling strand, saka lang lalabas ang tamang electives para sa track na 'yun
+if (strandSelect) {
+    strandSelect.addEventListener('change', function() {
+        const selectedStrand = this.value;
+        const availableElectives = electiveData[selectedTrack]?.[selectedStrand] || [];
+        
+        electiveSelects.forEach(sel => {
+            if (sel) {
+                sel.innerHTML = '<option value="">Select Elective</option>';
+                availableElectives.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item;
+                    opt.textContent = item;
+                    sel.appendChild(opt);
+                });
+            }
+        });
+    });
+}
 // Open/Close Login Modal
 personnelLoginBtn.addEventListener('click', () => loginModal.classList.add('show'));
 closeModal.addEventListener('click', () => loginModal.classList.remove('show'));
