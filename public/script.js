@@ -286,3 +286,17 @@ document.addEventListener('change', function(e) {
         });
     }
 });
+
+// Awtomatikong alisin ang TVL subjects kapag Academic ang pinili
+document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(() => {
+        document.querySelectorAll('select[id*="Elective"], .elective-select').forEach(select => {
+            Array.from(select.options).forEach(opt => {
+                if (opt.text.includes('Computer Programming') || opt.text.includes('Entrepreneurship')) {
+                    opt.remove();
+                }
+            });
+        });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+});
