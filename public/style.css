@@ -351,3 +351,33 @@ body {
   background: var(--primary-maroon);
   color: #ffffff;
   border:
+
+  /* Logo & Header Styling */
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.school-logo {
+  width: 40px;
+  height: auto;
+  object-fit: contain;
+}
+
+.logo-text {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  letter-spacing: 0.5px;
+}
+
+/* Adjustments for mobile view */
+@media (max-width: 768px) {
+  .school-logo {
+    width: 32px;
+  }
+  .logo-text {
+    font-size: 0.85rem;
+  }
+}
