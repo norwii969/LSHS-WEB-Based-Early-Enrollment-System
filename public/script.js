@@ -27,55 +27,7 @@ const term2Select = document.getElementById('term2Elective');
 const term3Select = document.getElementById('term3Elective');
 
 // New Curriculum Elective Mapping per Cluster
-// Direktang listahan ng mga electives para sa bawat Track
-const trackElectivesMap = {
-    "Academic": [
-        "Humanities & Social Sciences Focus",
-        "Journalism & Creative Writing",
-        "Speech and Stage Arts",
-        "General Academic Subject",
-        "Advanced Mathematics 1",
-        "General Chemistry",
-        "Basic Accounting 1"
-    ],
-    "TVL": [
-        "Computer Programming / ICT",
-        "Basic Entrepreneurship",
-        "HE / Cookery",
-        "Animation NC II",
-        "Technical Drafting NC II"
-    ]
-};
 
-// Hanapin ang mga track buttons at elective dropdowns
-const trackButtons = document.querySelectorAll('.track-btn, button, .track-option'); //depende sa button class mo
-const electiveDropdowns = document.querySelectorAll('select[id*="Elective"], .elective-select');
-
-// Function para palitan ang laman ng dropdowns batay sa piniling track
-function updateElectiveOptions(trackType) {
-    const optionsList = trackElectivesMap[trackType] || trackElectivesMap["Academic"];
-    
-    electiveDropdowns.forEach(select => {
-        // Panatilihin ang default prompt sa taas
-        select.innerHTML = '<option value="">Select Term</option>';
-        
-        optionsList.forEach(item => {
-            const opt = document.createElement('option');
-            opt.value = item;
-            opt.textContent = item;
-            select.appendChild(opt);
-        });
-    });
-}
-
-// Maglagay ng click event sa mga track buttons para mag-filter agad
-document.addEventListener('click', function(e) {
-    if (e.target.textContent.includes('Academic')) {
-        updateElectiveOptions("Academic");
-    } else if (e.target.textContent.includes('Technical') || e.target.textContent.includes('TVL')) {
-        updateElectiveOptions("TVL");
-    }
-});
 // Kapag nagbago ang napiling strand, saka lang lalabas ang tamang electives para sa track na 'yun
 if (strandSelect) {
     strandSelect.addEventListener('change', function() {
@@ -295,3 +247,57 @@ if (enrollmentForm) {
     }
   });
 }
+
+// Malinis at Direktang Pag-filter ng Electives Batay sa Track
+document.addEventListener("DOMContentLoaded", function () {
+    const academicBtn = document.querySelector("#academic-track, button:nth-child(1), .track-academic"); 
+    const tvlBtn = document.querySelector("#tvl-track, button:nth-child(2), .track-tvl");
+    const electiveSelects = document.querySelectorAll('select[id*="Elective"], .elective-select');
+
+    const academicOptions = [
+        "Humanities & Social Sciences Focus",
+        "Journalism & Creative Writing",
+        "Speech and Stage Arts",
+        "General Academic Subject",
+        "Advanced Mathematics 1",
+        "General Chemistry",
+        "Basic Accounting 1"
+    ];
+
+    const tvlOptions = [
+        "Computer Programming / ICT",
+        "Basic Entrepreneurship",
+        "HE / Cookery",
+        "Animation NC II",
+        "Technical Drafting NC II"
+    ];
+
+    function populateElectives(optionsArray) {
+        electiveSelects.forEach(select => {
+            select.innerHTML = '<option value="">Select Term</option>';
+            optionsArray.forEach(item => {
+                const opt = document.createElement("option");
+                opt.value = item;
+                opt.textContent = item;
+                select.appendChild(opt);
+            });
+        });
+    }
+
+    // Default sa Academic pagka-load
+    populateElectives(academicOptions);
+
+    // Kapag pinindot ang Academic Track button
+    if (academicBtn) {
+        academicBtn.addEventListener("click", function () {
+            populateElectives(academicOptions);
+        });
+    }
+
+    // Kapag pinindot ang TVL Track button
+    if (tvlBtn) {
+        tvlBtn.addEventListener("click", function () {
+            populateElectives(tvlOptions);
+        });
+    }
+});
