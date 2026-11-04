@@ -1,0 +1,92 @@
+:root {
+    --maroon-dark: #660000;
+    --maroon-medium: #800000;
+    --bg-cream: #F9F3EE;
+    --card-cream: #FFFDF9;
+    --border-tan: #D6C2B0;
+    --text-dark: #222222;
+    --gold: #D4AF37;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
+body { background-color: #EFEFEF; color: var(--text-dark); }
+
+.main-header { background: linear-gradient(180deg, #7A0000 0%, #520000 100%); padding: 1.2rem 2.5rem; color: white; border-bottom: 4px solid var(--gold); }
+.header-container { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+.branding { display: flex; align-items: center; gap: 1.2rem; }
+.school-logo { width: 50px; height: auto; }
+.sub-header { font-size: 0.85rem; color: var(--gold); font-weight: bold; letter-spacing: 1px; }
+.main-title { font-size: 1.6rem; font-weight: bold; line-height: 1.15; }
+.login-link-btn { background: transparent; border: 1px solid rgba(255, 255, 255, 0.8); color: white; padding: 0.5rem 1.2rem; border-radius: 4px; cursor: pointer; }
+.login-link-btn:hover { background-color: white; color: var(--maroon-dark); }
+
+.main-container { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+.process-card { background-color: white; border: 3px solid var(--maroon-dark); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+.card-header { background-color: var(--bg-cream); color: var(--maroon-dark); padding: 1rem 1.5rem; font-weight: bold; font-size: 1.2rem; border-bottom: 2px solid var(--border-tan); display: flex; align-items: center; gap: 0.5rem; }
+.card-body { background-color: var(--card-cream); padding: 2rem; }
+.form-title { color: var(--maroon-dark); font-size: 1.5rem; text-align: center; margin-bottom: 2rem; font-weight: bold; }
+
+.form-row { display: flex; gap: 1.2rem; margin-bottom: 1.2rem; }
+.form-group { flex: 1; display: flex; flex-direction: column; gap: 0.4rem; }
+label { font-size: 0.85rem; font-weight: bold; color: var(--text-dark); }
+/* Bagong dagdag para sa logo object-fit */
+.school-logo {
+  object-fit: contain;
+}
+input[type="text"], input[type="email"], input[type="tel"], input[type="password"], select {
+    width: 100%; padding: 0.75rem 0.9rem; border: 1.5px solid #CCC; border-radius: 8px; font-size: 0.95rem; background-color: #FAFAFA;
+}
+input:focus, select:focus { outline: none; border-color: var(--maroon-medium); background-color: #FFF; }
+
+.icon-input .input-wrapper { display: flex; align-items: center; position: relative; }
+.phone-icon { position: absolute; left: 10px; font-size: 0.9rem; color: #666; }
+.icon-input input { padding-left: 2.2rem; }
+
+.track-section { margin: 1.8rem 0; }
+.section-label { display: block; margin-bottom: 0.6rem; font-weight: bold; }
+.track-buttons { display: flex; gap: 1rem; }
+.track-card-btn { flex: 1; text-align: center; padding: 1rem; background-color: var(--maroon-medium); color: white; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+input[type="radio"]:checked + .track-card-btn { background-color: var(--maroon-dark); box-shadow: 0 0 0 3px var(--gold); }
+
+/* Term Electives Section */
+.term-electives-box {
+    background-color: #F3EBE1;
+    border: 1.5px solid var(--border-tan);
+    border-radius: 8px;
+    padding: 1.2rem;
+    margin-bottom: 1.5rem;
+}
+
+.term-box-title {
+    color: var(--maroon-dark);
+    margin-bottom: 1rem;
+    font-size: 1rem;
+    text-align: left;
+}
+
+.submit-form-btn { width: 100%; background-color: var(--maroon-dark); color: white; border: none; padding: 0.9rem; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 1rem; }
+.submit-form-btn:hover { background-color: #4A0000; }
+
+.process-stepper { display: flex; align-items: center; justify-content: space-between; margin-top: 2.5rem; padding-top: 1.2rem; border-top: 1.5px solid var(--border-tan); }
+.step-item { display: flex; align-items: center; gap: 0.4rem; color: #999; font-size: 0.85rem; font-weight: bold; }
+.step-circle { width: 22px; height: 22px; border-radius: 50%; background-color: #CCC; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+.step-item.active { color: var(--maroon-dark); }
+.step-item.active .step-circle { background-color: var(--maroon-dark); }
+.step-line { flex: 1; height: 3px; background-color: #DDD; margin: 0 0.8rem; }
+.step-line.active { background-color: var(--maroon-dark); }
+
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+.modal-overlay.show { display: flex; }
+.modal-content { background: white; border: 3px solid var(--maroon-dark); border-radius: 10px; width: 90%; max-width: 450px; position: relative; overflow: hidden; }
+.modal-close { position: absolute; top: 10px; right: 15px; font-size: 1.5rem; cursor: pointer; color: #666; }
+.modal-header { background-color: var(--bg-cream); padding: 1rem 1.2rem; border-bottom: 1.5px solid var(--border-tan); color: var(--maroon-dark); display: flex; align-items: center; gap: 0.5rem; }
+.modal-body { padding: 1.8rem; }
+.modal-title { color: var(--maroon-dark); margin-bottom: 1.2rem; text-align: center; }
+.modal-login-btn { width: 100%; background-color: var(--maroon-dark); color: white; padding: 0.8rem; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 1rem; }
+
+.hidden { display: none !important; }
+.logout-btn { margin-left: auto; background-color: var(--maroon-dark); color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; }
+.table-wrapper { overflow-x: auto; margin-top: 1rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 0.75rem; border: 1px solid #DDD; text-align: left; font-size: 0.85rem; }
+th { background-color: var(--bg-cream); color: var(--maroon-dark); }

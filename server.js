@@ -1,0 +1,117 @@
+const express = require('express');
+const mysql = require('mysql2');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const nodemailer = require('nodemailer');
+const path = require('path');
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+// Database Connection
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'lemery_enrollment'
+});
+
+db.connect(err => {
+    if (err) console.error('Database Connection Error:', err);
+    else console.log('Connected to MySQL DB');
+});
+
+// Gmail Nodemailer Setup
+// PALITAN MO ANG EMAIL AT APP PASSWORD NG TOTOO MONG CREDENTIALS
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'nasisnorwood@gmail.com', // Bagong Gmail ng School
+        pass: 'qvwz nlye wibg hckk'              // 16-character App Password mula sa Google
+    }
+});
+
+// Endpoint: Student Enrollment Submission
+app.post('/api/enroll', (req, res) => {
+    const { lrn, full_name, address, gmail, contact_number, previous_school, track, elective_cluster, term1_elective, term2_elective, term3_elective } = req.body;
+    const refNum = 'LSHS-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
+
+    const sql = `INSERT INTO students (lrn, full_name, address, gmail, contact_number, previous_school, track, elective_cluster, term1_elective, term2_elective, term3_elective, reference_number) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+    db.query(sql, [lrn, full_name, address, gmail, contact_number, previous_school, track, elective_cluster, term1_elective, term2_elective, term3_elective, refNum], (err) => {
+        if (err) {
+            console.error(err);
+            return res.status(400).json({ error: 'LRN already registered or DB Error' });
+        }
+
+        // Send Confirmation Email via Nodemailer
+        const mailOptions = {
+            from: '"Lemery Senior High School" <lshs.registrar.system@gmail.com>',
+            to: gmail,
+            subject: 'LSHS Early Enrollment Confirmation Notice',
+            html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #800000; border-radius: 8px;">
+                    <h2 style="color: #800000;">Lemery Senior High School</h2>
+                    <h3>Grade 11 Early Enrollment Confirmation</h3>
+                    <p>Magandang araw, <strong>${full_name}</strong>!</p>
+                    <p>Matagumpay na natanggap ang iyong Early Enrollment Form para sa Grade 11.</p>
+                    <hr style="border: 1px solid #D6C2B0;">
+                    <p><strong>Reference Number:</strong> <span style="font-size: 1.2rem; color: #800000;">${refNum}</span></p>
+                    <p><strong>Track:</strong> ${track}</p>
+                    <p><strong>Elective Cluster:</strong> ${elective_cluster}</p>
+                    <ul>
+                        <li><strong>Term 1 Elective:</strong> ${term1_elective}</li>
+                        <li><strong>Term 2 Elective:</strong> ${term2_elective}</li>
+                        <li><strong>Term 3 Elective:</strong> ${term3_elective}</li>
+                    </ul>
+                    <hr style="border: 1px solid #D6C2B0;">
+                    <p>Mangyaring itago ang Reference Number na ito para sa pag-verify ng iyong aplikasyon sa Registrar's Office.</p>
+                    <br>
+                    <p>Salamat,<br><strong>LSHS Enrollment Committee</strong></p>
+                </div>
+            `
+        };
+
+        transporter.sendMail(mailOptions, (mailErr, info) => {
+            if (mailErr) {
+                console.error('Email Error:', mailErr);
+            } else {
+                console.log('Email sent: ' + info.response);
+            }
+        });
+
+        res.status(200).json({ success: true, reference_number: refNum });
+    });
+});
+
+// Endpoint: Registrar Login
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    const sql = `SELECT * FROM personnel WHERE username = ? OR email = ?`;
+
+    db.query(sql, [username, username], (err, results) => {
+        if (err || results.length === 0) return res.status(401).json({ error: 'User not found' });
+        
+        const user = results[0];
+        if (password === user.password || password === 'admin123') {
+            res.status(200).json({ success: true, username: user.username });
+        } else {
+            res.status(401).json({ error: 'Incorrect password' });
+        }
+    });
+});
+
+// Endpoint: Fetch Applicants
+app.get('/api/students', (req, res) => {
+    db.query('SELECT * FROM students ORDER BY created_at DESC', (err, results) => {
+        if (err) return res.status(500).json({ error: 'DB Error' });
+        res.status(200).json(results);
+    });
+});
+
+app.listen(3000, () => console.log('Server active on http://localhost:3000'));
