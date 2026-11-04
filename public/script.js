@@ -248,56 +248,41 @@ if (enrollmentForm) {
   });
 }
 
-// Malinis at Direktang Pag-filter ng Electives Batay sa Track
-document.addEventListener("DOMContentLoaded", function () {
-    const academicBtn = document.querySelector("#academic-track, button:nth-child(1), .track-academic"); 
-    const tvlBtn = document.querySelector("#tvl-track, button:nth-child(2), .track-tvl");
-    const electiveSelects = document.querySelectorAll('select[id*="Elective"], .elective-select');
+// --- FIX PARA SA TRACK AT ELECTIVES SEPARATION ---
+document.addEventListener('change', function(e) {
+    if (e.target.matches('input[name="track"]')) {
+        const trackVal = e.target.value.toLowerCase();
+        const electiveSelects = document.querySelectorAll('select[id*="Elective"], .elective-select');
+        
+        let targetOptions = [];
+        if (trackVal.includes('academic')) {
+            targetOptions = [
+                "Humanities & Social Sciences Focus",
+                "Journalism & Creative Writing",
+                "Speech and Stage Arts",
+                "General Academic Subject",
+                "Advanced Mathematics 1",
+                "General Chemistry",
+                "Basic Accounting 1"
+            ];
+        } else {
+            targetOptions = [
+                "Computer Programming / ICT",
+                "Basic Entrepreneurship",
+                "HE / Cookery",
+                "Animation NC II",
+                "Technical Drafting NC II"
+            ];
+        }
 
-    const academicOptions = [
-        "Humanities & Social Sciences Focus",
-        "Journalism & Creative Writing",
-        "Speech and Stage Arts",
-        "General Academic Subject",
-        "Advanced Mathematics 1",
-        "General Chemistry",
-        "Basic Accounting 1"
-    ];
-
-    const tvlOptions = [
-        "Computer Programming / ICT",
-        "Basic Entrepreneurship",
-        "HE / Cookery",
-        "Animation NC II",
-        "Technical Drafting NC II"
-    ];
-
-    function populateElectives(optionsArray) {
         electiveSelects.forEach(select => {
             select.innerHTML = '<option value="">Select Term</option>';
-            optionsArray.forEach(item => {
-                const opt = document.createElement("option");
+            targetOptions.forEach(item => {
+                const opt = document.createElement('option');
                 opt.value = item;
                 opt.textContent = item;
                 select.appendChild(opt);
             });
-        });
-    }
-
-    // Default sa Academic pagka-load
-    populateElectives(academicOptions);
-
-    // Kapag pinindot ang Academic Track button
-    if (academicBtn) {
-        academicBtn.addEventListener("click", function () {
-            populateElectives(academicOptions);
-        });
-    }
-
-    // Kapag pinindot ang TVL Track button
-    if (tvlBtn) {
-        tvlBtn.addEventListener("click", function () {
-            populateElectives(tvlOptions);
         });
     }
 });
