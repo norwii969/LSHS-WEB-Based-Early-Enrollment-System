@@ -27,95 +27,55 @@ const term2Select = document.getElementById('term2Elective');
 const term3Select = document.getElementById('term3Elective');
 
 // New Curriculum Elective Mapping per Cluster
-const electiveData = {
-    "Academic Track": {
-        "Science, Technology, Engineering, and Math (STEM)": [
-            "Advanced Mathematics 1",
-            "Advanced Mathematics 2",
-            "General Chemistry",
-            "General Physics",
-            "Fundamentals of Data Analytics",
-            "Earth Science Bundle"
-        ],
-        "Business and Entrepreneurship": [
-            "Basic Accounting 1",
-            "Business Finance & Taxation",
-            "Contemporary Marketing",
-            "Business Economics",
-            "Entrepreneurship",
-            "Organization Management"
-        ],
-        "Social Sciences, Humanities & Arts": [
-            "Philippine Politics & Governance",
-            "Creative Writing",
-            "Malikhaing Pagsulat",
-            "Citizenship & Civic Engagement",
-            "Performing Arts",
-            "Visual Arts"
-        ],
-        "Sports, Health, and Wellness": [
-            "Human Movement & Anatomy",
-            "Sports Coaching & Officiating",
-            "Safety & First Aid",
-            "Sports Activity Management"
-        ]
-    },
-    "Technical-Professional (TechPro)": {
-        "Information & Communications Technology (ICT)": [
-            "Computer Programming (Java)",
-            "Computer Programming (.NET)",
-            "Animation NC II",
-            "Illustration NC II",
-            "Contact Center Services NC II"
-        ],
-        "Family & Consumer Science (FCS)": [
-            "Food and Beverage Operations NC II",
-            "Kitchen Operations NC II",
-            "Front Office Operations NC II",
-            "Housekeeping NC II",
-            "Bakery Operations NC II"
-        ],
-        "Industrial Arts (IA)": [
-            "Technical Drafting NC II",
-            "Electrical Installation & Maintenance NC II",
-            "Automotive Servicing NC II"
-        ]
-    }
+// Direktang listahan ng mga electives para sa bawat Track
+const trackElectivesMap = {
+    "Academic": [
+        "Humanities & Social Sciences Focus",
+        "Journalism & Creative Writing",
+        "Speech and Stage Arts",
+        "General Academic Subject",
+        "Advanced Mathematics 1",
+        "General Chemistry",
+        "Basic Accounting 1"
+    ],
+    "TVL": [
+        "Computer Programming / ICT",
+        "Basic Entrepreneurship",
+        "HE / Cookery",
+        "Animation NC II",
+        "Technical Drafting NC II"
+    ]
 };
-// Kunin ang mga elements para sa track selection at elective dropdowns
-const trackButtons = document.querySelectorAll('.track-btn'); // O kung ano mang class/ID ang gamit mo sa buttons
-const strandSelect = document.getElementById('strandSelect'); // Dropdown para sa strands (STEM, ICT, etc.)
-const electiveSelects = [
-    document.getElementById('term1Elective'),
-    document.getElementById('term2Elective'),
-    document.getElementById('term3Elective')
-];
 
-let selectedTrack = "Academic Track"; // Default
+// Hanapin ang mga track buttons at elective dropdowns
+const trackButtons = document.querySelectorAll('.track-btn, button, .track-option'); //depende sa button class mo
+const electiveDropdowns = document.querySelectorAll('select[id*="Elective"], .elective-select');
 
-// Kapag pinili ang Academic Track
-function handleTrackChange(trackName) {
-    selectedTrack = trackName;
+// Function para palitan ang laman ng dropdowns batay sa piniling track
+function updateElectiveOptions(trackType) {
+    const optionsList = trackElectivesMap[trackType] || trackElectivesMap["Academic"];
     
-    // I-filter ang strand dropdown para sa napiling track lamang
-    if (strandSelect) {
-        strandSelect.innerHTML = '<option value="">Select Strand / Specialization</option>';
-        const strands = Object.keys(electiveData[selectedTrack] || {});
+    electiveDropdowns.forEach(select => {
+        // Panatilihin ang default prompt sa taas
+        select.innerHTML = '<option value="">Select Term</option>';
         
-        strands.forEach(strand => {
+        optionsList.forEach(item => {
             const opt = document.createElement('option');
-            opt.value = strand;
-            opt.textContent = strand;
-            strandSelect.appendChild(opt);
+            opt.value = item;
+            opt.textContent = item;
+            select.appendChild(opt);
         });
-    }
-    
-    // Linisin din ang mga elective dropdowns kapag nagpalit ng track
-    electiveSelects.forEach(sel => {
-        if (sel) sel.innerHTML = '<option value="">Select Elective</option>';
     });
 }
 
+// Maglagay ng click event sa mga track buttons para mag-filter agad
+document.addEventListener('click', function(e) {
+    if (e.target.textContent.includes('Academic')) {
+        updateElectiveOptions("Academic");
+    } else if (e.target.textContent.includes('Technical') || e.target.textContent.includes('TVL')) {
+        updateElectiveOptions("TVL");
+    }
+});
 // Kapag nagbago ang napiling strand, saka lang lalabas ang tamang electives para sa track na 'yun
 if (strandSelect) {
     strandSelect.addEventListener('change', function() {
