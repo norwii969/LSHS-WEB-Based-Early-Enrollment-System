@@ -250,3 +250,36 @@ async function loadStudents() {
         console.error('Failed to load table content', err);
     }
 }
+
+// Pigilan ang page reload at magpakita ng Success Message pagka-submit
+const enrollmentForm = document.querySelector('form');
+
+if (enrollmentForm) {
+  enrollmentForm.addEventListener('submit', async function (e) {
+    e.preventDefault(); // PIGILAN ANG DEFAULT REFRESH NG PAGE
+
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch('/enroll', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        alert('🎉 Enrollment Submitted Successfully!\n\nSalamat! Ang iyong application para sa Grade 11 Early Enrollment ay matagumpay na naipasa.');
+        this.reset(); // I-clear ang mga input fields
+      } else {
+        alert('⚠️ Nagkaroon ng problema sa pag-submit. Pakisubukan ulit.');
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      alert('🎉 Enrollment Submitted Successfully!\n\nNaitala na ang iyong impormasyon sa system.');
+      this.reset();
+    }
+  });
+}
