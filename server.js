@@ -14,10 +14,14 @@ app.get('/', (req, res) => {
 });
 // Database Connection
 const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'lemery_enrollment'
+  host: 'mysql-1fbd24b0-nasisnorwood-313d.l.aivencloud.com',
+  user: 'avnadmin',
+  password: 'AVNS_k16aJfAE98KDBn6bNia',
+  database: 'defaultdb',
+  port: 24169,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 db.connect(err => {
