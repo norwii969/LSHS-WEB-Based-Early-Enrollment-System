@@ -352,32 +352,26 @@ body {
   color: #ffffff;
   border:
 
- /* Precise Balanced Logo & Dark Centered Text */
-.navbar {
-  display: flex !important;
-  align-items: center !important;
-}
-
+ /* Final Extra Small Logo & Dark Centered Text */
 .logo-container {
   display: flex !important;
-  align-items: center !important; /* Siguradong nakagitna ang text sa katabing logo */
-  gap: 12px !important;
+  align-items: center !important;
+  gap: 10px !important;
 }
 
 .school-logo {
-  width: 45px !important; /* Tamang-tamang sukat lang */
-  height: 45px !important;
-  max-width: 45px !important;
-  max-height: 45px !important;
+  width: 32px !important; /* Mas pinalatag at pinaliliit */
+  height: 32px !important;
+  max-width: 32px !important;
+  max-height: 32px !important;
   object-fit: contain !important;
   display: block !important;
 }
 
 .logo-text {
-  font-size: 1.05rem !important;
-  font-weight: 800 !important; /* Bold na bold */
-  color: #4a0000 !important; /* Mas dark maroon */
+  font-size: 1rem !important;
+  font-weight: 800 !important;
+  color: #4a0000 !important; /* Dark Maroon */
   letter-spacing: 0.5px !important;
   line-height: 1 !important;
-  margin: 0 !important;
 }
