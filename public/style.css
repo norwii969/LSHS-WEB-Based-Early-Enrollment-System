@@ -140,7 +140,7 @@ body {
   font-size: 0.9rem;
 }
 
-/* Red Slanted Design Lines (Nakatagilid sa gilid/ilalim) */
+/* Red Slanted Design Lines */
 .hero-design-wrapper {
   position: relative;
   width: 280px;
@@ -350,9 +350,23 @@ body {
   padding: 12px;
   background: var(--primary-maroon);
   color: #ffffff;
-  border:
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
 
- /* Final Extra Small Logo & Dark Centered Text */
+.btn-submit:hover {
+  background: var(--dark-maroon);
+}
+
+.btn-submit:active {
+  transform: scale(0.99);
+}
+
+/* Extra Small Logo & Dark Centered Text */
 .logo-container {
   display: flex !important;
   align-items: center !important;
@@ -360,7 +374,7 @@ body {
 }
 
 .school-logo {
-  width: 32px !important; /* Mas pinalatag at pinaliliit */
+  width: 32px !important;
   height: 32px !important;
   max-width: 32px !important;
   max-height: 32px !important;
@@ -371,27 +385,12 @@ body {
 .logo-text {
   font-size: 1rem !important;
   font-weight: 800 !important;
-  color: #4a0000 !important; /* Dark Maroon */
+  color: #4a0000 !important;
   letter-spacing: 0.5px !important;
   line-height: 1 !important;
 }
 
-/* ==========================================================================
-   Clean Hero Section & Background Lines
-   ========================================================================== */
-
-/* Piliting itago ang LUMANG floating block graphics */
-.hero-design-wrapper,
-.slanted-line,
-.line-main,
-.line-sub,
-.line-gold {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-}
-
-/* Bago at malinis na Hero Background Lines */
+/* Clean Hero Section & Background Lines */
 .hero-section {
   position: relative !important;
   z-index: 1 !important;
@@ -439,4 +438,61 @@ body {
   right: 5% !important;
   top: 0px !important;
   opacity: 0.15 !important;
+}
+
+/* ==========================================================================
+   MOBILE & TABLET RESPONSIVE STYLES (Added)
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  /* Navbar adjustments */
+  .navbar {
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 4%;
+    text-align: center;
+  }
+
+  .nav-links {
+    gap: 14px;
+    font-size: 0.85rem;
+  }
+
+  /* Hero section scaling */
+  .hero-section {
+    padding: 30px 4%;
+  }
+
+  .hero-content h1 {
+    font-size: 1.7rem;
+  }
+
+  /* Main container turns to single column */
+  .main-container {
+    grid-template-columns: 1fr;
+    padding: 0 4% 40px;
+    gap: 20px;
+  }
+
+  /* Form rows turn to single column */
+  .form-row, 
+  .form-row.3-cols {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .form-card {
+    padding: 20px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .track-options {
+    grid-template-columns: 1fr;
+  }
+
+  .nav-buttons {
+    width: 100%;
+    justify-content: center;
+  }
 }

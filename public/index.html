@@ -132,10 +132,6 @@
               <label for="term1Elective">Preferred Elective (Term 1)</label>
               <select id="term1Elective" name="term1Elective" required>
                 <option value="" disabled selected>Select Term 1</option>
-                <option value="Computer Programming / ICT">Computer Programming / ICT</option>
-                <option value="Basic Entrepreneurship">Basic Entrepreneurship</option>
-                <option value="Journalism & Creative Writing">Journalism & Creative Writing</option>
-                <option value="Speech and Stage Arts">Speech and Stage Arts</option>
               </select>
             </div>
 
@@ -143,10 +139,6 @@
               <label for="term2Elective">Preferred Elective (Term 2)</label>
               <select id="term2Elective" name="term2Elective" required>
                 <option value="" disabled selected>Select Term 2</option>
-                <option value="Web Development Basics">Web Development Basics</option>
-                <option value="Financial Literacy & Accounting">Financial Literacy & Accounting</option>
-                <option value="Environmental Science">Environmental Science</option>
-                <option value="Digital Media & Arts">Digital Media & Arts</option>
               </select>
             </div>
 
@@ -154,10 +146,6 @@
               <label for="term3Elective">Preferred Elective (Term 3)</label>
               <select id="term3Elective" name="term3Elective" required>
                 <option value="" disabled selected>Select Term 3</option>
-                <option value="Advanced Computer Science">Advanced Computer Science</option>
-                <option value="Business Plan & Innovation">Business Plan & Innovation</option>
-                <option value="Research & Data Analytics">Research & Data Analytics</option>
-                <option value="Work Immersion Elective">Work Immersion Elective</option>
               </select>
             </div>
           </div>
@@ -168,6 +156,81 @@
     </div>
 
   </section>
+
+  <!-- Script para sa Paghihiwalay ng Academic at TVL Electives -->
+  <script>
+    const electivesData = {
+      "Academic Track": {
+        term1: [
+          "Computer Programming / ICT",
+          "Basic Entrepreneurship",
+          "Journalism & Creative Writing",
+          "Speech and Stage Arts"
+        ],
+        term2: [
+          "Web Development Basics",
+          "Financial Literacy & Accounting",
+          "Environmental Science",
+          "Digital Media & Arts"
+        ],
+        term3: [
+          "Advanced Computer Science",
+          "Business Plan & Innovation",
+          "Research & Data Analytics",
+          "Work Immersion Elective"
+        ]
+      },
+      "TVL Track": {
+        term1: [
+          "Computer Systems Servicing (CSS)",
+          "Cookery & Culinary Basics",
+          "Bread & Pastry Production",
+          "Electrical Installation & Maintenance"
+        ],
+        term2: [
+          "Network Fundamentals & Cabling",
+          "Food & Beverage Service",
+          "Commercial Cooking",
+          "Shielded Metal Arc Welding (SMAW)"
+        ],
+        term3: [
+          "TVL Work Immersion / OJT",
+          "Technical Drafting & CAD",
+          "Automotive Servicing",
+          "Agri-Crop Production"
+        ]
+      }
+    };
+
+    function updateElectives() {
+      const selectedTrack = document.querySelector('input[name="track"]:checked').value;
+      const data = electivesData[selectedTrack];
+
+      populateDropdown('term1Elective', data.term1, 'Select Term 1');
+      populateDropdown('term2Elective', data.term2, 'Select Term 2');
+      populateDropdown('term3Elective', data.term3, 'Select Term 3');
+    }
+
+    function populateDropdown(selectId, options, placeholder) {
+      const selectElem = document.getElementById(selectId);
+      selectElem.innerHTML = `<option value="" disabled selected>${placeholder}</option>`;
+      
+      options.forEach(opt => {
+        const optionNode = document.createElement('option');
+        optionNode.value = opt;
+        optionNode.textContent = opt;
+        selectElem.appendChild(optionNode);
+      });
+    }
+
+    // Event listener para mag-update kapag pinalitan ang track
+    document.querySelectorAll('input[name="track"]').forEach(radio => {
+      radio.addEventListener('change', updateElectives);
+    });
+
+    // Initial call para ma-populate agad batay sa naka-check na track (Academic)
+    document.addEventListener('DOMContentLoaded', updateElectives);
+  </script>
 
 </body>
 </html>
