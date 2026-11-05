@@ -277,7 +277,7 @@
       radio.addEventListener('change', updateElectives);
     });
 
-    // 2. Student Enrollment Submission (Pure English Alerts)
+    // 2. Student Enrollment Submission (Instant Response Logic with Swal.close)
     document.getElementById('enrollmentForm').addEventListener('submit', async function(e) {
       e.preventDefault();
 
@@ -296,7 +296,7 @@
 
       Swal.fire({
         title: 'Submitting Enrollment...',
-        text: 'Please wait while your registration is being processed.',
+        text: 'Please wait...',
         allowOutsideClick: false,
         didOpen: () => { Swal.showLoading(); }
       });
@@ -309,6 +309,9 @@
         });
 
         const result = await response.json();
+
+        // Agad isara ang loading spinner pagka-respond ng backend
+        Swal.close();
 
         if (response.ok && result.success) {
           Swal.fire({
@@ -335,12 +338,13 @@
         } else {
           Swal.fire({
             title: 'Submission Failed',
-            text: result.error || 'An error occurred while saving your enrollment record.',
+            text: result.error || 'LRN is already registered or Database Error.',
             icon: 'error',
             confirmButtonColor: '#800000'
           });
         }
       } catch (error) {
+        Swal.close();
         Swal.fire({
           title: 'Server Error',
           text: 'Could not connect to the server. Please ensure the server is active.',
