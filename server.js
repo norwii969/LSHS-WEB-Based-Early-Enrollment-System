@@ -52,14 +52,17 @@ db.query(createTableQuery, (err) => {
     else console.log('Students table is ready in Aiven Database!');
 });
 
-// Gmail Nodemailer Setup (Gumagamit na ng Environment Variables at Port 465)
+// Gmail Nodemailer Setup (Gumagamit na ng Port 587 para sa Render Free Tier)
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // true para sa port 465
+    port: 587,
+    secure: false, // false para sa port 587
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
+    },
+    tls: {
+        rejectUnauthorized: false
     }
 });
 
