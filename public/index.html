@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lemery Senior High School Early Enrollment System</title>
   <link rel="stylesheet" href="style.css?v=3">
-  <!-- SweetAlert2 CSS & JS CDN (para sa magandang Success Popup) -->
+  <!-- SweetAlert2 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
@@ -23,15 +23,14 @@
       <li><a href="#">About Us</a></li>
     </ul>
     <div class="nav-buttons">
-      <a href="#" class="btn-secondary">Personnel Login</a>
+      <!-- Personnel Login Button -->
+      <a href="#" id="btnPersonnelLogin" class="btn-secondary">Personnel Login</a>
       <a href="#enroll-form" class="btn-primary">Enroll Now</a>
     </div>
   </nav>
 
-  <!-- Hero Section with Richer Red Background Lines -->
+  <!-- Hero Section -->
   <section class="hero-section" style="position: relative; overflow: hidden; z-index: 1;">
-    
-    <!-- Background Slanted Lines -->
     <div class="hero-bg-lines" style="position: absolute; top: 0; right: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none;">
       <div style="position: absolute; width: 140px; height: 580px; background: linear-gradient(135deg, #a00000 0%, #700000 100%); right: 10%; top: -100px; transform: rotate(-35deg); border-radius: 40px; opacity: 0.35;"></div>
       <div style="position: absolute; width: 80px; height: 500px; background: #800000; right: 22%; top: -50px; transform: rotate(-35deg); border-radius: 40px; opacity: 0.25;"></div>
@@ -44,13 +43,12 @@
       <h2>Grade 11 Early Enrollment System</h2>
       <p>Mabilis at madaling online enrollment para sa mas maayos at mabilis na proseso ng pagpaparehistro.</p>
     </div>
-
   </section>
 
   <!-- Split Section (Process + Form) -->
   <section class="main-container" id="enroll-form">
     
-    <!-- Left: Step-by-Step Process Card -->
+    <!-- Left Process Card -->
     <div class="process-card">
       <h3>Step-by-Step<br>Enrollment Process</h3>
       <div class="step-list">
@@ -73,7 +71,7 @@
       </div>
     </div>
 
-    <!-- Right: Enrollment Form -->
+    <!-- Right Enrollment Form -->
     <div class="form-card">
       <h2>Enrollment Form</h2>
       <form id="enrollmentForm">
@@ -124,7 +122,7 @@
           </div>
         </div>
 
-        <!-- NEW CURRICULUM: Electives Selection (3 Terms) -->
+        <!-- Electives Selection -->
         <div class="electives-section">
           <h3>New Curriculum Electives (3 Terms)</h3>
           
@@ -158,9 +156,40 @@
 
   </section>
 
-  <!-- Scripts -->
+  <!-- Admin Dashboard Section (Nakatago by default, lilitaw kapag nag-login) -->
+  <section id="adminDashboardSection" style="display: none; padding: 0 6% 60px;">
+    <div style="background: #ffffff; padding: 24px; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.03);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="color: #800000; font-size: 1.4rem; font-weight: 800; margin: 0;">Registrar Admin Dashboard</h2>
+        <button id="btnLogout" style="background: #800000; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">Logout</button>
+      </div>
+      
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+          <thead>
+            <tr style="background-color: #fdf0f0; color: #800000; border-bottom: 2px solid #800000;">
+              <th style="padding: 12px;">Ref. No.</th>
+              <th style="padding: 12px;">LRN</th>
+              <th style="padding: 12px;">Full Name</th>
+              <th style="padding: 12px;">Gmail</th>
+              <th style="padding: 12px;">Contact</th>
+              <th style="padding: 12px;">Track</th>
+              <th style="padding: 12px;">Term 1</th>
+              <th style="padding: 12px;">Term 2</th>
+              <th style="padding: 12px;">Term 3</th>
+            </tr>
+          </thead>
+          <tbody id="studentsTableBody">
+            <!-- Dito kusa ipapasok ng JS ang mga enrolled students -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- JavaScript Logic -->
   <script>
-    // 1. Electives Data Dynamic Loading
+    // 1. Electives Data Loading (Academic vs TVL)
     const electivesData = {
       "Academic Track": {
         term1: [
@@ -205,16 +234,23 @@
     };
 
     function updateElectives() {
-      const selectedTrack = document.querySelector('input[name="track"]:checked').value;
+      const selectedTrackInput = document.querySelector('input[name="track"]:checked');
+      if (!selectedTrackInput) return;
+
+      const selectedTrack = selectedTrackInput.value;
       const data = electivesData[selectedTrack];
 
-      populateDropdown('term1Elective', data.term1, 'Select Term 1');
-      populateDropdown('term2Elective', data.term2, 'Select Term 2');
-      populateDropdown('term3Elective', data.term3, 'Select Term 3');
+      if (data) {
+        populateDropdown('term1Elective', data.term1, 'Select Term 1');
+        populateDropdown('term2Elective', data.term2, 'Select Term 2');
+        populateDropdown('term3Elective', data.term3, 'Select Term 3');
+      }
     }
 
     function populateDropdown(selectId, options, placeholder) {
       const selectElem = document.getElementById(selectId);
+      if (!selectElem) return;
+
       selectElem.innerHTML = `<option value="" disabled selected>${placeholder}</option>`;
       
       options.forEach(opt => {
@@ -231,40 +267,183 @@
 
     document.addEventListener('DOMContentLoaded', updateElectives);
 
-    // 2. Submit Enrollment & Reference Number Generator
-    document.getElementById('enrollmentForm').addEventListener('submit', function(e) {
-      e.preventDefault(); // Iwas sa auto reload ng page
+    // 2. Student Enrollment Submission
+    document.getElementById('enrollmentForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
 
-      // Mag-generate ng random Reference Number (halimbawa: LSHS-2026-84920)
-      const randomNum = Math.floor(10000 + Math.random() * 90000);
-      const referenceNo = `LSHS-2026-${randomNum}`;
+      const formData = {
+        lrn: document.getElementById('lrn').value,
+        full_name: document.getElementById('fullName').value,
+        address: document.getElementById('address').value,
+        gmail: document.getElementById('gmail').value,
+        contact_number: document.getElementById('contact').value,
+        previous_school: document.getElementById('prevSchool').value,
+        track: document.querySelector('input[name="track"]:checked').value,
+        term1_elective: document.getElementById('term1Elective').value,
+        term2_elective: document.getElementById('term2Elective').value,
+        term3_elective: document.getElementById('term3Elective').value
+      };
 
-      // Ipakita ang Success Popup gamit ang SweetAlert2
       Swal.fire({
-        title: 'Enrollment Submitted!',
+        title: 'Submitting Enrollment...',
+        text: 'Mangyaring maghintay...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+      });
+
+      try {
+        const response = await fetch('/api/enroll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          Swal.fire({
+            title: 'Enrollment Submitted!',
+            html: `
+              <p style="font-size: 0.95rem; color: #444; margin-bottom: 15px;">
+                Matagumpay na naisave at naipadala sa email ang iyong rehistro.
+              </p>
+              <div style="background-color: #fdf0f0; padding: 12px; border-radius: 8px; border: 1px dashed #800000;">
+                <span style="font-size: 0.85rem; color: #666; display: block;">Reference Number:</span>
+                <strong style="font-size: 1.3rem; color: #800000;">${result.reference_number}</strong>
+              </div>
+            `,
+            icon: 'success',
+            confirmButtonColor: '#800000'
+          }).then(() => {
+            document.getElementById('enrollmentForm').reset();
+            updateElectives();
+          });
+        } else {
+          Swal.fire({
+            title: 'Submission Failed',
+            text: result.error || 'Nagkaroon ng problema sa pag-save.',
+            icon: 'error',
+            confirmButtonColor: '#800000'
+          });
+        }
+      } catch (error) {
+        Swal.fire({
+          title: 'Server Error',
+          text: 'Hindi makakonekta sa server.',
+          icon: 'error',
+          confirmButtonColor: '#800000'
+        });
+      }
+    });
+
+    // 3. Personnel Login & Dashboard Logic
+    document.getElementById('btnPersonnelLogin').addEventListener('click', function(e) {
+      e.preventDefault();
+
+      Swal.fire({
+        title: 'Personnel Login',
         html: `
-          <p style="font-size: 0.95rem; color: #444; margin-bottom: 15px;">
-            Salamat sa pagpaparehistro! Ang iyong early enrollment submission ay naitala na.
-          </p>
-          <div style="background-color: #fdf0f0; padding: 12px; border-radius: 8px; border: 1px dashed #800000;">
-            <span style="font-size: 0.85rem; color: #666; display: block;">Your Reference Number:</span>
-            <strong style="font-size: 1.3rem; color: #800000; letter-spacing: 1px;">${referenceNo}</strong>
-          </div>
-          <p style="font-size: 0.8rem; color: #777; margin-top: 12px;">
-            Pakitabi o i-screenshot ang reference number para sa mga susunod na beripikasyon.
-          </p>
+          <input type="text" id="adminUser" class="swal2-input" placeholder="Username or Email">
+          <input type="password" id="adminPass" class="swal2-input" placeholder="Password">
         `,
-        icon: 'success',
-        confirmButtonText: 'Great, Thanks!',
+        confirmButtonText: 'Sign In',
         confirmButtonColor: '#800000',
-        backdrop: true
-      }).then(() => {
-        // I-reset ang form pagka-confirm ng user
-        document.getElementById('enrollmentForm').reset();
-        updateElectives(); // Ibabalik sa default state ang electives
+        showCancelButton: true,
+        focusConfirm: false,
+        preConfirm: () => {
+          const username = Swal.getPopup().querySelector('#adminUser').value;
+          const password = Swal.getPopup().querySelector('#adminPass').value;
+          if (!username || !password) {
+            Swal.showValidationMessage(`Mangyaring ilagay ang username at password`);
+          }
+          return { username: username, password: password };
+        }
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            const res = await fetch('/api/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(result.value)
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+              Swal.fire({
+                icon: 'success',
+                title: 'Welcome Back!',
+                text: 'Matagumpay na nakapag-log in.',
+                timer: 1500,
+                showConfirmButton: false
+              });
+
+              loadEnrolledStudents();
+            } else {
+              Swal.fire({
+                icon: 'error',
+                title: 'Access Denied',
+                text: data.error || 'Maling username o password!',
+                confirmButtonColor: '#800000'
+              });
+            }
+          } catch (err) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Server connection failed.' });
+          }
+        }
+      });
+    });
+
+    // 4. Load Enrolled Students to Table
+    async function loadEnrolledStudents() {
+      try {
+        const response = await fetch('/api/students');
+        const students = await response.json();
+
+        const tbody = document.getElementById('studentsTableBody');
+        tbody.innerHTML = '';
+
+        if (students.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 15px;">Walang nakatalang student submissions.</td></tr>`;
+        } else {
+          students.forEach(st => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid #e2e8f0';
+            tr.innerHTML = `
+              <td style="padding: 10px; font-weight: 700; color: #800000;">${st.reference_number || 'N/A'}</td>
+              <td style="padding: 10px;">${st.lrn}</td>
+              <td style="padding: 10px;"><strong>${st.full_name}</strong></td>
+              <td style="padding: 10px;">${st.gmail}</td>
+              <td style="padding: 10px;">${st.contact_number}</td>
+              <td style="padding: 10px;">${st.track}</td>
+              <td style="padding: 10px;">${st.term1_elective}</td>
+              <td style="padding: 10px;">${st.term2_elective}</td>
+              <td style="padding: 10px;">${st.term3_elective}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+
+        // Ipakita ang Dashboard Section
+        document.getElementById('adminDashboardSection').style.display = 'block';
+        document.getElementById('adminDashboardSection').scrollIntoView({ behavior: 'smooth' });
+
+      } catch (err) {
+        console.error('Failed to fetch students:', err);
+      }
+    }
+
+    // 5. Logout Button
+    document.getElementById('btnLogout').addEventListener('click', function() {
+      document.getElementById('adminDashboardSection').style.display = 'none';
+      Swal.fire({
+        icon: 'info',
+        title: 'Logged Out',
+        text: 'Nakalabas ka na sa Personnel Dashboard.',
+        timer: 1500,
+        showConfirmButton: false
       });
     });
   </script>
-
 </body>
 </html>
