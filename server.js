@@ -52,12 +52,14 @@ db.query(createTableQuery, (err) => {
     else console.log('Students table is ready in Aiven Database!');
 });
 
-// Gmail Nodemailer Setup
+// Gmail Nodemailer Setup (Gumagamit na ng Environment Variables at Port 465)
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // true para sa port 465
     auth: {
-        user: 'nasisnorwood@gmail.com',
-        pass: 'qvwz nlye wibg hckk'
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
@@ -97,7 +99,7 @@ app.post('/api/enroll', (req, res) => {
         // BACKGROUND EMAIL SENDING
         try {
             const mailOptions = {
-                from: '"Lemery Senior High School" <nasisnorwood@gmail.com>',
+                from: `"Lemery Senior High School" <${process.env.EMAIL_USER}>`,
                 to: gmail,
                 subject: 'LSHS Early Enrollment Confirmation Notice',
                 html: `
@@ -123,7 +125,11 @@ app.post('/api/enroll', (req, res) => {
             };
 
             transporter.sendMail(mailOptions, (mailErr) => {
-                if (mailErr) console.error('Background Email Error:', mailErr.message);
+                if (mailErr) {
+                    console.error('Background Email Error:', mailErr.message);
+                } else {
+                    console.log('Notification email sent successfully to:', gmail);
+                }
             });
         } catch (emailException) {
             console.error('Email Exception:', emailException.message);
