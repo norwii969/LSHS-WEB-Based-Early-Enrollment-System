@@ -156,7 +156,7 @@
 
   </section>
 
-  <!-- Admin Dashboard Section (Visible upon Login) -->
+  <!-- Admin Dashboard Section -->
   <section id="adminDashboardSection" style="display: none; padding: 40px 6% 80px;">
     <div style="background: #ffffff; padding: 28px; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
@@ -190,7 +190,7 @@
     </div>
   </section>
 
-  <!-- Complete JavaScript Logic (Forced Display & Pure English) -->
+  <!-- JavaScript Logic -->
   <script>
     // 1. Electives Data Loading (Academic vs TVL)
     const electivesData = {
@@ -343,7 +343,7 @@
       }
     });
 
-    // 3. Personnel Login Modal & Auto Reveal
+    // 3. Personnel Login Trigger
     document.getElementById('btnPersonnelLogin').addEventListener('click', function(e) {
       e.preventDefault();
 
@@ -377,15 +377,18 @@
             const data = await res.json();
 
             if (res.ok && data.success) {
+              // Show success popup, then show dashboard immediately
               Swal.fire({
                 icon: 'success',
                 title: 'Welcome Back!',
                 text: 'Successfully logged in as Personnel.',
-                timer: 1200,
+                timer: 1000,
                 showConfirmButton: false
-              }).then(() => {
-                loadEnrolledStudents();
               });
+
+              // IMMEDIATELY SHOW DASHBOARD
+              showDashboard();
+              loadEnrolledStudents();
             } else {
               Swal.fire({
                 icon: 'error',
@@ -398,7 +401,7 @@
             Swal.fire({ 
               icon: 'error', 
               title: 'Connection Error', 
-              text: 'Cannot connect to backend server. Make sure server.js is active.',
+              text: 'Cannot connect to backend server.',
               confirmButtonColor: '#800000'
             });
           }
@@ -406,7 +409,16 @@
       });
     });
 
-    // 4. Load Enrolled Students & Force Reveal Panel
+    // Function to physically show panel and scroll
+    function showDashboard() {
+      const dashboard = document.getElementById('adminDashboardSection');
+      if (dashboard) {
+        dashboard.style.cssText = "display: block !important; padding: 40px 6% 80px !important;";
+        dashboard.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    // 4. Load Enrolled Students
     async function loadEnrolledStudents() {
       try {
         const response = await fetch('/api/students');
@@ -437,14 +449,6 @@
             });
           }
         }
-
-        // Forced Display Override
-        const dashboard = document.getElementById('adminDashboardSection');
-        if (dashboard) {
-          dashboard.setAttribute('style', 'display: block !important; padding: 40px 6% 80px;');
-          dashboard.scrollIntoView({ behavior: 'smooth' });
-        }
-
       } catch (err) {
         console.error('Failed to fetch students:', err);
       }
@@ -456,7 +460,7 @@
       btnLogout.addEventListener('click', function() {
         const dashboard = document.getElementById('adminDashboardSection');
         if (dashboard) {
-          dashboard.setAttribute('style', 'display: none !important;');
+          dashboard.style.cssText = "display: none !important;";
         }
         Swal.fire({
           icon: 'info',
