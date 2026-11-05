@@ -41,7 +41,7 @@
       <span class="badge">S.Y. 2026-2027</span>
       <h1>Start Your Journey<br>with <span>LEMERY SENIOR HIGH SCHOOL</span></h1>
       <h2>Grade 11 Early Enrollment System</h2>
-      <p>Mabilis at madaling online enrollment para sa mas maayos at mabilis na proseso ng pagpaparehistro.</p>
+      <p>Fast and easy online enrollment process for Grade 11 applicants.</p>
     </div>
   </section>
 
@@ -156,16 +156,19 @@
 
   </section>
 
-  <!-- Admin Dashboard Section (Nakatago by default, lilitaw kapag nag-login) -->
-  <section id="adminDashboardSection" style="display: none; padding: 0 6% 60px;">
-    <div style="background: #ffffff; padding: 24px; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.03);">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2 style="color: #800000; font-size: 1.4rem; font-weight: 800; margin: 0;">Registrar Admin Dashboard</h2>
-        <button id="btnLogout" style="background: #800000; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">Logout</button>
+  <!-- Admin Dashboard Section (Visible upon Login) -->
+  <section id="adminDashboardSection" style="display: none; padding: 40px 6% 80px;">
+    <div style="background: #ffffff; padding: 28px; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div>
+          <h2 style="color: #800000; font-size: 1.5rem; font-weight: 800; margin: 0;">Registrar Personnel Dashboard</h2>
+          <p style="color: #666; font-size: 0.88rem; margin: 4px 0 0;">List of all submitted Grade 11 early enrollment applications.</p>
+        </div>
+        <button id="btnLogout" style="background: #800000; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.9rem;">Logout</button>
       </div>
       
       <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
           <thead>
             <tr style="background-color: #fdf0f0; color: #800000; border-bottom: 2px solid #800000;">
               <th style="padding: 12px;">Ref. No.</th>
@@ -180,7 +183,7 @@
             </tr>
           </thead>
           <tbody id="studentsTableBody">
-            <!-- Dito kusa ipapasok ng JS ang mga enrolled students -->
+            <!-- Dynamically populated via JavaScript -->
           </tbody>
         </table>
       </div>
@@ -267,7 +270,7 @@
 
     document.addEventListener('DOMContentLoaded', updateElectives);
 
-    // 2. Student Enrollment Submission
+    // 2. Student Enrollment Submission (Pure English Alerts)
     document.getElementById('enrollmentForm').addEventListener('submit', async function(e) {
       e.preventDefault();
 
@@ -286,7 +289,7 @@
 
       Swal.fire({
         title: 'Submitting Enrollment...',
-        text: 'Mangyaring maghintay...',
+        text: 'Please wait while your registration is being processed.',
         allowOutsideClick: false,
         didOpen: () => { Swal.showLoading(); }
       });
@@ -305,14 +308,18 @@
             title: 'Enrollment Submitted!',
             html: `
               <p style="font-size: 0.95rem; color: #444; margin-bottom: 15px;">
-                Matagumpay na naisave at naipadala sa email ang iyong rehistro.
+                Thank you for registering! Your application has been saved and a confirmation email has been sent to <strong>${formData.gmail}</strong>.
               </p>
               <div style="background-color: #fdf0f0; padding: 12px; border-radius: 8px; border: 1px dashed #800000;">
-                <span style="font-size: 0.85rem; color: #666; display: block;">Reference Number:</span>
-                <strong style="font-size: 1.3rem; color: #800000;">${result.reference_number}</strong>
+                <span style="font-size: 0.85rem; color: #666; display: block;">Your Reference Number:</span>
+                <strong style="font-size: 1.3rem; color: #800000; letter-spacing: 1px;">${result.reference_number}</strong>
               </div>
+              <p style="font-size: 0.8rem; color: #777; margin-top: 12px;">
+                Please save or take a screenshot of your reference number for verification.
+              </p>
             `,
             icon: 'success',
+            confirmButtonText: 'Great, Thanks!',
             confirmButtonColor: '#800000'
           }).then(() => {
             document.getElementById('enrollmentForm').reset();
@@ -321,7 +328,7 @@
         } else {
           Swal.fire({
             title: 'Submission Failed',
-            text: result.error || 'Nagkaroon ng problema sa pag-save.',
+            text: result.error || 'An error occurred while saving your enrollment record.',
             icon: 'error',
             confirmButtonColor: '#800000'
           });
@@ -329,22 +336,22 @@
       } catch (error) {
         Swal.fire({
           title: 'Server Error',
-          text: 'Hindi makakonekta sa server.',
+          text: 'Could not connect to the server. Please ensure the server is active.',
           icon: 'error',
           confirmButtonColor: '#800000'
         });
       }
     });
 
-    // 3. Personnel Login & Dashboard Logic
+    // 3. Personnel Login Modal & Dashboard Reveal
     document.getElementById('btnPersonnelLogin').addEventListener('click', function(e) {
       e.preventDefault();
 
       Swal.fire({
         title: 'Personnel Login',
         html: `
-          <input type="text" id="adminUser" class="swal2-input" placeholder="Username or Email">
-          <input type="password" id="adminPass" class="swal2-input" placeholder="Password">
+          <input type="text" id="adminUser" class="swal2-input" placeholder="Username (Try: admin)">
+          <input type="password" id="adminPass" class="swal2-input" placeholder="Password (Try: admin123)">
         `,
         confirmButtonText: 'Sign In',
         confirmButtonColor: '#800000',
@@ -354,7 +361,7 @@
           const username = Swal.getPopup().querySelector('#adminUser').value;
           const password = Swal.getPopup().querySelector('#adminPass').value;
           if (!username || !password) {
-            Swal.showValidationMessage(`Mangyaring ilagay ang username at password`);
+            Swal.showValidationMessage(`Please enter your username and password`);
           }
           return { username: username, password: password };
         }
@@ -373,22 +380,27 @@
               Swal.fire({
                 icon: 'success',
                 title: 'Welcome Back!',
-                text: 'Matagumpay na nakapag-log in.',
+                text: 'Successfully logged in as Personnel.',
                 timer: 1500,
                 showConfirmButton: false
+              }).then(() => {
+                loadEnrolledStudents();
               });
-
-              loadEnrolledStudents();
             } else {
               Swal.fire({
                 icon: 'error',
                 title: 'Access Denied',
-                text: data.error || 'Maling username o password!',
+                text: data.error || 'Invalid username or password!',
                 confirmButtonColor: '#800000'
               });
             }
           } catch (err) {
-            Swal.fire({ icon: 'error', title: 'Error', text: 'Server connection failed.' });
+            Swal.fire({ 
+              icon: 'error', 
+              title: 'Connection Error', 
+              text: 'Cannot connect to backend server. Make sure server.js is active.',
+              confirmButtonColor: '#800000'
+            });
           }
         }
       });
@@ -403,8 +415,8 @@
         const tbody = document.getElementById('studentsTableBody');
         tbody.innerHTML = '';
 
-        if (students.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 15px;">Walang nakatalang student submissions.</td></tr>`;
+        if (!students || students.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 18px; color: #777;">No student submissions found in database.</td></tr>`;
         } else {
           students.forEach(st => {
             const tr = document.createElement('tr');
@@ -424,22 +436,23 @@
           });
         }
 
-        // Ipakita ang Dashboard Section
-        document.getElementById('adminDashboardSection').style.display = 'block';
-        document.getElementById('adminDashboardSection').scrollIntoView({ behavior: 'smooth' });
+        // Show the Dashboard Section & Smooth Scroll
+        const dashboard = document.getElementById('adminDashboardSection');
+        dashboard.style.display = 'block';
+        dashboard.scrollIntoView({ behavior: 'smooth' });
 
       } catch (err) {
         console.error('Failed to fetch students:', err);
       }
     }
 
-    // 5. Logout Button
+    // 5. Logout Button Logic
     document.getElementById('btnLogout').addEventListener('click', function() {
       document.getElementById('adminDashboardSection').style.display = 'none';
       Swal.fire({
         icon: 'info',
         title: 'Logged Out',
-        text: 'Nakalabas ka na sa Personnel Dashboard.',
+        text: 'You have been signed out of the Personnel Dashboard.',
         timer: 1500,
         showConfirmButton: false
       });
