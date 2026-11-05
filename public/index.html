@@ -346,15 +346,15 @@
       }
     });
 
-    // 3. Personnel Login Trigger & Exclusive Screen Toggle
+    // 3. Personnel Login Trigger & Secure Input Modal
     document.getElementById('btnPersonnelLogin').addEventListener('click', function(e) {
       e.preventDefault();
 
       Swal.fire({
         title: 'Personnel Login',
         html: `
-          <input type="text" id="adminUser" class="swal2-input" placeholder="Username (e.g. admin)">
-          <input type="password" id="adminPass" class="swal2-input" placeholder="Password (e.g. admin123)">
+          <input type="text" id="adminUser" class="swal2-input" placeholder="Username">
+          <input type="password" id="adminPass" class="swal2-input" placeholder="Password">
         `,
         confirmButtonText: 'Sign In',
         confirmButtonColor: '#800000',
