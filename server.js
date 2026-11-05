@@ -14,22 +14,22 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Database Connection
-const db = mysql.createConnection({
+// INSTANT SPEED FIX: Connection Pool sa halip na single connection
+const db = mysql.createPool({
   host: 'mysql-1fbd24b0-nasisnorwood-313d.l.aivencloud.com',
   user: 'avnadmin',
   password: 'AVNS_k16aJfAE98KDBn6bNia',
   database: 'defaultdb',
   port: 24169,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
   ssl: {
     rejectUnauthorized: false
   }
 });
 
-db.connect(err => {
-    if (err) console.error('Database Connection Error:', err);
-    else console.log('Connected to MySQL DB');
-});
+console.log('MySQL Database Pool initialized successfully.');
 
 // Gmail Nodemailer Setup
 const transporter = nodemailer.createTransport({
@@ -40,7 +40,7 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// Endpoint: Student Enrollment Submission (Bulletproof & Fast)
+// Endpoint: Student Enrollment Submission (Super Fast & Bulletproof)
 app.post('/api/enroll', (req, res) => {
     const { 
         lrn, 
@@ -61,16 +61,17 @@ app.post('/api/enroll', (req, res) => {
     const sql = `INSERT INTO students (lrn, full_name, address, gmail, contact_number, previous_school, track, elective_cluster, term1_elective, term2_elective, term3_elective, reference_number) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
+    // Direct Pool Query Execution
     db.query(sql, [lrn, full_name, address, gmail, contact_number, previous_school, track, cluster, term1_elective, term2_elective, term3_elective, refNum], (err) => {
         if (err) {
-            console.error('Database Insertion Error:', err);
+            console.error('Database Insertion Error:', err.message);
             return res.status(400).json({ error: 'LRN is already registered or Database Error.' });
         }
 
-        // 1. AGAD NA MAG-RESPONSE SA BROWSER (INSTANT SUCCESS POPUP)
+        // 1. INSTANT SUCCESS RESPONSE SA BROWSER
         res.status(200).json({ success: true, reference_number: refNum });
 
-        // 2. SAFE BACKGROUND EMAIL SENDING (Zero Server Crash Risk)
+        // 2. BACKGROUND EMAIL SENDING (Zero Delay)
         try {
             const mailOptions = {
                 from: '"Lemery Senior High School" <nasisnorwood@gmail.com>',
@@ -99,19 +100,16 @@ app.post('/api/enroll', (req, res) => {
             };
 
             transporter.sendMail(mailOptions, (mailErr, info) => {
-                if (mailErr) {
-                    console.error('Background Email Error (Handled):', mailErr.message);
-                } else {
-                    console.log('Background Email Sent:', info.response);
-                }
+                if (mailErr) console.error('Background Email Warning:', mailErr.message);
+                else console.log('Background Email Sent:', info.response);
             });
         } catch (emailException) {
-            console.error('Caught Email Exception safely:', emailException.message);
+            console.error('Caught Email Exception:', emailException.message);
         }
     });
 });
 
-// Endpoint: Registrar Login (With Admin Fallback)
+// Endpoint: Registrar Login
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
 
@@ -135,7 +133,7 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// Endpoint: Fetch Applicants
+// Endpoint: Fetch Applicants Table
 app.get('/api/students', (req, res) => {
     db.query('SELECT * FROM students ORDER BY created_at DESC', (err, results) => {
         if (err) return res.status(500).json({ error: 'DB Error' });
