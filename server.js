@@ -14,11 +14,11 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Database Connection Pool (Fix Password at Rapid Pool Connection)
+// Database Connection Pool (Gamit ang Bagong Reset Password)
 const db = mysql.createPool({
   host: 'mysql-1fbd24b0-nasisnorwood-313d.l.aivencloud.com',
   user: 'avnadmin',
-  password: 'AVNS_k16aJfAE98KDBn6bNia',
+  password: 'AVNS_URyxcYzwRckUVqVhsu3', // Fresh Reset Password
   database: 'defaultdb',
   port: 24169,
   waitForConnections: true,
@@ -55,7 +55,6 @@ app.post('/api/enroll', (req, res) => {
 
     const refNum = 'LSHS-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
 
-    // SQL query na akma sa database columns
     const sql = `INSERT INTO students (lrn, full_name, address, gmail, contact_number, previous_school, track, term1_elective, term2_elective, term3_elective, reference_number) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
@@ -63,14 +62,13 @@ app.post('/api/enroll', (req, res) => {
         if (err) {
             console.error('EKSAKTONG MYSQL ERROR:', err.sqlMessage || err.message);
             
-            // Mas malinaw na error message sa frontend kung LRN duplicate o ibang DB Error
             if (err.code === 'ER_DUP_ENTRY') {
                 return res.status(400).json({ error: 'This LRN is already registered in the system.' });
             }
             return res.status(400).json({ error: `Database Error: ${err.sqlMessage || err.message}` });
         }
 
-        // AGAD NA SUCCESS RESPONSE
+        // AGAD NA SUCCESS RESPONSE SA BROWSER
         res.status(200).json({ success: true, reference_number: refNum });
 
         // BACKGROUND EMAIL SENDING
