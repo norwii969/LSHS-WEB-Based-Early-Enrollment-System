@@ -195,6 +195,12 @@
 
   <!-- Complete JavaScript Logic -->
   <script>
+    // 0. Instant Server Warm-up (Ginigising agad ang Render habang binubuksan ang page)
+    document.addEventListener('DOMContentLoaded', () => {
+      fetch('/api/students').catch(() => {});
+      updateElectives();
+    });
+
     // 1. Electives Data Loading (Academic vs TVL)
     const electivesData = {
       "Academic Track": {
@@ -270,8 +276,6 @@
     document.querySelectorAll('input[name="track"]').forEach(radio => {
       radio.addEventListener('change', updateElectives);
     });
-
-    document.addEventListener('DOMContentLoaded', updateElectives);
 
     // 2. Student Enrollment Submission (Pure English Alerts)
     document.getElementById('enrollmentForm').addEventListener('submit', async function(e) {
