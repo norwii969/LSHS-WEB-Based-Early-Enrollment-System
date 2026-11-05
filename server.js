@@ -14,7 +14,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// INSTANT SPEED FIX: Connection Pool sa halip na single connection
+// Database Connection Pool
 const db = mysql.createPool({
   host: 'mysql-1fbd24b0-nasisnorwood-313d.l.aivencloud.com',
   user: 'avnadmin',
@@ -29,8 +29,6 @@ const db = mysql.createPool({
   }
 });
 
-console.log('MySQL Database Pool initialized successfully.');
-
 // Gmail Nodemailer Setup
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -40,7 +38,7 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// Endpoint: Student Enrollment Submission (Super Fast & Bulletproof)
+// Endpoint: Student Enrollment Submission
 app.post('/api/enroll', (req, res) => {
     const { 
         lrn, 
@@ -56,22 +54,26 @@ app.post('/api/enroll', (req, res) => {
     } = req.body;
 
     const refNum = 'LSHS-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
-    const cluster = track || 'Academic Track';
 
-    const sql = `INSERT INTO students (lrn, full_name, address, gmail, contact_number, previous_school, track, elective_cluster, term1_elective, term2_elective, term3_elective, reference_number) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    // SQL query na akma sa database columns
+    const sql = `INSERT INTO students (lrn, full_name, address, gmail, contact_number, previous_school, track, term1_elective, term2_elective, term3_elective, reference_number) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    // Direct Pool Query Execution
-    db.query(sql, [lrn, full_name, address, gmail, contact_number, previous_school, track, cluster, term1_elective, term2_elective, term3_elective, refNum], (err) => {
+    db.query(sql, [lrn, full_name, address, gmail, contact_number, previous_school, track, term1_elective, term2_elective, term3_elective, refNum], (err) => {
         if (err) {
-            console.error('Database Insertion Error:', err.message);
-            return res.status(400).json({ error: 'LRN is already registered or Database Error.' });
+            console.error('EKSAKTONG MYSQL ERROR:', err.sqlMessage || err.message);
+            
+            // Mas malinaw na error message sa frontend kung LRN duplicate o ibang DB Error
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(400).json({ error: 'This LRN is already registered in the system.' });
+            }
+            return res.status(400).json({ error: `Database Error: ${err.sqlMessage || err.message}` });
         }
 
-        // 1. INSTANT SUCCESS RESPONSE SA BROWSER
+        // AGAD NA SUCCESS RESPONSE
         res.status(200).json({ success: true, reference_number: refNum });
 
-        // 2. BACKGROUND EMAIL SENDING (Zero Delay)
+        // BACKGROUND EMAIL SENDING
         try {
             const mailOptions = {
                 from: '"Lemery Senior High School" <nasisnorwood@gmail.com>',
@@ -99,12 +101,11 @@ app.post('/api/enroll', (req, res) => {
                 `
             };
 
-            transporter.sendMail(mailOptions, (mailErr, info) => {
-                if (mailErr) console.error('Background Email Warning:', mailErr.message);
-                else console.log('Background Email Sent:', info.response);
+            transporter.sendMail(mailOptions, (mailErr) => {
+                if (mailErr) console.error('Background Email Error:', mailErr.message);
             });
         } catch (emailException) {
-            console.error('Caught Email Exception:', emailException.message);
+            console.error('Email Exception:', emailException.message);
         }
     });
 });
@@ -133,7 +134,7 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// Endpoint: Fetch Applicants Table
+// Endpoint: Fetch Applicants
 app.get('/api/students', (req, res) => {
     db.query('SELECT * FROM students ORDER BY created_at DESC', (err, results) => {
         if (err) return res.status(500).json({ error: 'DB Error' });
