@@ -14,7 +14,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Database Connection Pool
+// Database Connection Pool (Fix Password at Rapid Pool Connection)
 const db = mysql.createPool({
   host: 'mysql-1fbd24b0-nasisnorwood-313d.l.aivencloud.com',
   user: 'avnadmin',
