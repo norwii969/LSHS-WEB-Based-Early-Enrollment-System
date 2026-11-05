@@ -107,19 +107,27 @@ app.post('/api/enroll', (req, res) => {
     });
 });
 
-// Endpoint: Registrar Login
+// Endpoint: Registrar Login (With Fallback for Immediate Access)
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
+
+    // Direct fallback check for quick admin testing
+    if ((username === 'admin' || username === 'registrar') && password === 'admin123') {
+        return res.status(200).json({ success: true, username: username });
+    }
+
     const sql = `SELECT * FROM personnel WHERE username = ? OR email = ?`;
 
     db.query(sql, [username, username], (err, results) => {
-        if (err || results.length === 0) return res.status(401).json({ error: 'User not found' });
+        if (err || results.length === 0) {
+            return res.status(401).json({ error: 'User not found in personnel records.' });
+        }
         
         const user = results[0];
         if (password === user.password || password === 'admin123') {
             res.status(200).json({ success: true, username: user.username });
         } else {
-            res.status(401).json({ error: 'Incorrect password' });
+            res.status(401).json({ error: 'Incorrect password.' });
         }
     });
 });
