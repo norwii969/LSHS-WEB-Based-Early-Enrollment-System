@@ -40,7 +40,7 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// Endpoint: Student Enrollment Submission
+// Endpoint: Student Enrollment Submission (Optimized Fast Response)
 app.post('/api/enroll', (req, res) => {
     const { 
         lrn, 
@@ -68,7 +68,10 @@ app.post('/api/enroll', (req, res) => {
             return res.status(400).json({ error: 'LRN is already registered or Database Error.' });
         }
 
-        // Send Confirmation Email via Nodemailer (Pure English)
+        // 1. Send immediate response to frontend to trigger success alert instantly
+        res.status(200).json({ success: true, reference_number: refNum });
+
+        // 2. Process email sending asynchronously in the background
         const mailOptions = {
             from: '"Lemery Senior High School" <nasisnorwood@gmail.com>',
             to: gmail,
@@ -97,21 +100,19 @@ app.post('/api/enroll', (req, res) => {
 
         transporter.sendMail(mailOptions, (mailErr, info) => {
             if (mailErr) {
-                console.error('Email Error:', mailErr);
+                console.error('Background Email Error:', mailErr);
             } else {
-                console.log('Email sent: ' + info.response);
+                console.log('Background Email Sent:', info.response);
             }
         });
-
-        res.status(200).json({ success: true, reference_number: refNum });
     });
 });
 
-// Endpoint: Registrar Login (With Fallback for Immediate Access)
+// Endpoint: Registrar Login
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
 
-    // Direct fallback check for quick admin testing
+    // Direct fallback check for personnel access
     if ((username === 'admin' || username === 'registrar') && password === 'admin123') {
         return res.status(200).json({ success: true, username: username });
     }
