@@ -40,7 +40,7 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// Endpoint: Student Enrollment Submission (Optimized Fast Response)
+// Endpoint: Student Enrollment Submission (Bulletproof & Fast)
 app.post('/api/enroll', (req, res) => {
     const { 
         lrn, 
@@ -50,69 +50,71 @@ app.post('/api/enroll', (req, res) => {
         contact_number, 
         previous_school, 
         track, 
-        elective_cluster, 
         term1_elective, 
         term2_elective, 
         term3_elective 
     } = req.body;
 
     const refNum = 'LSHS-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
-    const cluster = elective_cluster || track;
+    const cluster = track || 'Academic Track';
 
     const sql = `INSERT INTO students (lrn, full_name, address, gmail, contact_number, previous_school, track, elective_cluster, term1_elective, term2_elective, term3_elective, reference_number) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     db.query(sql, [lrn, full_name, address, gmail, contact_number, previous_school, track, cluster, term1_elective, term2_elective, term3_elective, refNum], (err) => {
         if (err) {
-            console.error(err);
+            console.error('Database Insertion Error:', err);
             return res.status(400).json({ error: 'LRN is already registered or Database Error.' });
         }
 
-        // 1. Send immediate response to frontend to trigger success alert instantly
+        // 1. AGAD NA MAG-RESPONSE SA BROWSER (INSTANT SUCCESS POPUP)
         res.status(200).json({ success: true, reference_number: refNum });
 
-        // 2. Process email sending asynchronously in the background
-        const mailOptions = {
-            from: '"Lemery Senior High School" <nasisnorwood@gmail.com>',
-            to: gmail,
-            subject: 'LSHS Early Enrollment Confirmation Notice',
-            html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #800000; border-radius: 8px;">
-                    <h2 style="color: #800000;">Lemery Senior High School</h2>
-                    <h3>Grade 11 Early Enrollment Confirmation</h3>
-                    <p>Good day, <strong>${full_name}</strong>!</p>
-                    <p>Your Grade 11 Early Enrollment Form has been successfully received.</p>
-                    <hr style="border: 1px solid #D6C2B0;">
-                    <p><strong>Reference Number:</strong> <span style="font-size: 1.2rem; color: #800000;">${refNum}</span></p>
-                    <p><strong>Track:</strong> ${track}</p>
-                    <ul>
-                        <li><strong>Term 1 Elective:</strong> ${term1_elective}</li>
-                        <li><strong>Term 2 Elective:</strong> ${term2_elective}</li>
-                        <li><strong>Term 3 Elective:</strong> ${term3_elective}</li>
-                    </ul>
-                    <hr style="border: 1px solid #D6C2B0;">
-                    <p>Please keep this Reference Number for application verification at the Registrar's Office.</p>
-                    <br>
-                    <p>Thank you,<br><strong>LSHS Enrollment Committee</strong></p>
-                </div>
-            `
-        };
+        // 2. SAFE BACKGROUND EMAIL SENDING (Zero Server Crash Risk)
+        try {
+            const mailOptions = {
+                from: '"Lemery Senior High School" <nasisnorwood@gmail.com>',
+                to: gmail,
+                subject: 'LSHS Early Enrollment Confirmation Notice',
+                html: `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #800000; border-radius: 8px;">
+                        <h2 style="color: #800000;">Lemery Senior High School</h2>
+                        <h3>Grade 11 Early Enrollment Confirmation</h3>
+                        <p>Good day, <strong>${full_name}</strong>!</p>
+                        <p>Your Grade 11 Early Enrollment Form has been successfully received.</p>
+                        <hr style="border: 1px solid #D6C2B0;">
+                        <p><strong>Reference Number:</strong> <span style="font-size: 1.2rem; color: #800000;">${refNum}</span></p>
+                        <p><strong>Track:</strong> ${track}</p>
+                        <ul>
+                            <li><strong>Term 1 Elective:</strong> ${term1_elective}</li>
+                            <li><strong>Term 2 Elective:</strong> ${term2_elective}</li>
+                            <li><strong>Term 3 Elective:</strong> ${term3_elective}</li>
+                        </ul>
+                        <hr style="border: 1px solid #D6C2B0;">
+                        <p>Please keep this Reference Number for application verification at the Registrar's Office.</p>
+                        <br>
+                        <p>Thank you,<br><strong>LSHS Enrollment Committee</strong></p>
+                    </div>
+                `
+            };
 
-        transporter.sendMail(mailOptions, (mailErr, info) => {
-            if (mailErr) {
-                console.error('Background Email Error:', mailErr);
-            } else {
-                console.log('Background Email Sent:', info.response);
-            }
-        });
+            transporter.sendMail(mailOptions, (mailErr, info) => {
+                if (mailErr) {
+                    console.error('Background Email Error (Handled):', mailErr.message);
+                } else {
+                    console.log('Background Email Sent:', info.response);
+                }
+            });
+        } catch (emailException) {
+            console.error('Caught Email Exception safely:', emailException.message);
+        }
     });
 });
 
-// Endpoint: Registrar Login
+// Endpoint: Registrar Login (With Admin Fallback)
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
 
-    // Direct fallback check for personnel access
     if ((username === 'admin' || username === 'registrar') && password === 'admin123') {
         return res.status(200).json({ success: true, username: username });
     }
