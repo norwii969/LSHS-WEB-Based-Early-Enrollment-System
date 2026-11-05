@@ -65,10 +65,10 @@ app.post('/api/enroll', (req, res) => {
     db.query(sql, [lrn, full_name, address, gmail, contact_number, previous_school, track, cluster, term1_elective, term2_elective, term3_elective, refNum], (err) => {
         if (err) {
             console.error(err);
-            return res.status(400).json({ error: 'LRN already registered or DB Error' });
+            return res.status(400).json({ error: 'LRN is already registered or Database Error.' });
         }
 
-        // Send Confirmation Email via Nodemailer
+        // Send Confirmation Email via Nodemailer (Pure English)
         const mailOptions = {
             from: '"Lemery Senior High School" <nasisnorwood@gmail.com>',
             to: gmail,
@@ -77,8 +77,8 @@ app.post('/api/enroll', (req, res) => {
                 <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #800000; border-radius: 8px;">
                     <h2 style="color: #800000;">Lemery Senior High School</h2>
                     <h3>Grade 11 Early Enrollment Confirmation</h3>
-                    <p>Magandang araw, <strong>${full_name}</strong>!</p>
-                    <p>Matagumpay na natanggap ang iyong Early Enrollment Form para sa Grade 11.</p>
+                    <p>Good day, <strong>${full_name}</strong>!</p>
+                    <p>Your Grade 11 Early Enrollment Form has been successfully received.</p>
                     <hr style="border: 1px solid #D6C2B0;">
                     <p><strong>Reference Number:</strong> <span style="font-size: 1.2rem; color: #800000;">${refNum}</span></p>
                     <p><strong>Track:</strong> ${track}</p>
@@ -88,9 +88,9 @@ app.post('/api/enroll', (req, res) => {
                         <li><strong>Term 3 Elective:</strong> ${term3_elective}</li>
                     </ul>
                     <hr style="border: 1px solid #D6C2B0;">
-                    <p>Mangyaring itago ang Reference Number na ito para sa pag-verify ng iyong aplikasyon sa Registrar's Office.</p>
+                    <p>Please keep this Reference Number for application verification at the Registrar's Office.</p>
                     <br>
-                    <p>Salamat,<br><strong>LSHS Enrollment Committee</strong></p>
+                    <p>Thank you,<br><strong>LSHS Enrollment Committee</strong></p>
                 </div>
             `
         };
