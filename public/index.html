@@ -4,33 +4,34 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lemery Senior High School Early Enrollment System</title>
- <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=3">
+  <!-- SweetAlert2 CSS & JS CDN (para sa magandang Success Popup) -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
 
   <!-- Navbar -->
-<!-- Navbar -->
-<nav class="navbar" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 6%;">
-  <div class="logo-container" style="display: flex; align-items: center; gap: 10px;">
-    <img src="12.png" alt="LSHS Logo" style="height: 32px; width: 32px; max-height: 32px; max-width: 32px; object-fit: contain; display: block;">
-    <span class="logo-text" style="font-size: 1rem; font-weight: 800; color: #4a0000; letter-spacing: 0.5px; line-height: 1; margin: 0;">LEMERY SENIOR HIGH SCHOOL</span>
-  </div>
-  <ul class="nav-links">
-    <li><a href="#">Home</a></li>
-    <li><a href="#">Student Process</a></li>
-    <li><a href="#">Guidance</a></li>
-    <li><a href="#">About Us</a></li>
-  </ul>
-  <div class="nav-buttons">
-    <a href="#" class="btn-secondary">Personnel Login</a>
-    <a href="#enroll-form" class="btn-primary">Enroll Now</a>
-  </div>
-</nav>
+  <nav class="navbar" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 6%;">
+    <div class="logo-container" style="display: flex; align-items: center; gap: 10px;">
+      <img src="12.png" alt="LSHS Logo" style="height: 32px; width: 32px; max-height: 32px; max-width: 32px; object-fit: contain; display: block;">
+      <span class="logo-text" style="font-size: 1rem; font-weight: 800; color: #4a0000; letter-spacing: 0.5px; line-height: 1; margin: 0;">LEMERY SENIOR HIGH SCHOOL</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#">Home</a></li>
+      <li><a href="#">Student Process</a></li>
+      <li><a href="#">Guidance</a></li>
+      <li><a href="#">About Us</a></li>
+    </ul>
+    <div class="nav-buttons">
+      <a href="#" class="btn-secondary">Personnel Login</a>
+      <a href="#enroll-form" class="btn-primary">Enroll Now</a>
+    </div>
+  </nav>
 
- <!-- Hero Section with Richer Red Background Lines -->
+  <!-- Hero Section with Richer Red Background Lines -->
   <section class="hero-section" style="position: relative; overflow: hidden; z-index: 1;">
     
-    <!-- Background Slanted Lines (Mas Matingkad na Pula) -->
+    <!-- Background Slanted Lines -->
     <div class="hero-bg-lines" style="position: absolute; top: 0; right: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none;">
       <div style="position: absolute; width: 140px; height: 580px; background: linear-gradient(135deg, #a00000 0%, #700000 100%); right: 10%; top: -100px; transform: rotate(-35deg); border-radius: 40px; opacity: 0.35;"></div>
       <div style="position: absolute; width: 80px; height: 500px; background: #800000; right: 22%; top: -50px; transform: rotate(-35deg); border-radius: 40px; opacity: 0.25;"></div>
@@ -157,8 +158,9 @@
 
   </section>
 
-  <!-- Script para sa Paghihiwalay ng Academic at TVL Electives -->
+  <!-- Scripts -->
   <script>
+    // 1. Electives Data Dynamic Loading
     const electivesData = {
       "Academic Track": {
         term1: [
@@ -223,13 +225,45 @@
       });
     }
 
-    // Event listener para mag-update kapag pinalitan ang track
     document.querySelectorAll('input[name="track"]').forEach(radio => {
       radio.addEventListener('change', updateElectives);
     });
 
-    // Initial call para ma-populate agad batay sa naka-check na track (Academic)
     document.addEventListener('DOMContentLoaded', updateElectives);
+
+    // 2. Submit Enrollment & Reference Number Generator
+    document.getElementById('enrollmentForm').addEventListener('submit', function(e) {
+      e.preventDefault(); // Iwas sa auto reload ng page
+
+      // Mag-generate ng random Reference Number (halimbawa: LSHS-2026-84920)
+      const randomNum = Math.floor(10000 + Math.random() * 90000);
+      const referenceNo = `LSHS-2026-${randomNum}`;
+
+      // Ipakita ang Success Popup gamit ang SweetAlert2
+      Swal.fire({
+        title: 'Enrollment Submitted!',
+        html: `
+          <p style="font-size: 0.95rem; color: #444; margin-bottom: 15px;">
+            Salamat sa pagpaparehistro! Ang iyong early enrollment submission ay naitala na.
+          </p>
+          <div style="background-color: #fdf0f0; padding: 12px; border-radius: 8px; border: 1px dashed #800000;">
+            <span style="font-size: 0.85rem; color: #666; display: block;">Your Reference Number:</span>
+            <strong style="font-size: 1.3rem; color: #800000; letter-spacing: 1px;">${referenceNo}</strong>
+          </div>
+          <p style="font-size: 0.8rem; color: #777; margin-top: 12px;">
+            Pakitabi o i-screenshot ang reference number para sa mga susunod na beripikasyon.
+          </p>
+        `,
+        icon: 'success',
+        confirmButtonText: 'Great, Thanks!',
+        confirmButtonColor: '#800000',
+        backdrop: true
+      }).then(() => {
+        // I-reset ang form pagka-confirm ng user
+        document.getElementById('enrollmentForm').reset();
+        updateElectives(); // Ibabalik sa default state ang electives
+      });
+    });
   </script>
 
 </body>

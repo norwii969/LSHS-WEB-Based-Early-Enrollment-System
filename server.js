@@ -5,6 +5,7 @@ const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
 const path = require('path');
 const app = express();
+
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -12,6 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
 // Database Connection
 const db = mysql.createConnection({
   host: 'mysql-1fbd24b0-nasisnorwood-313d.l.aivencloud.com',
@@ -24,31 +26,43 @@ const db = mysql.createConnection({
   }
 });
 
-
 db.connect(err => {
     if (err) console.error('Database Connection Error:', err);
     else console.log('Connected to MySQL DB');
 });
 
 // Gmail Nodemailer Setup
-// PALITAN MO ANG EMAIL AT APP PASSWORD NG TOTOO MONG CREDENTIALS
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'nasisnorwood@gmail.com', // Bagong Gmail ng School
-        pass: 'qvwz nlye wibg hckk'              // 16-character App Password mula sa Google
+        user: 'nasisnorwood@gmail.com',
+        pass: 'qvwz nlye wibg hckk'
     }
 });
 
 // Endpoint: Student Enrollment Submission
 app.post('/api/enroll', (req, res) => {
-    const { lrn, full_name, address, gmail, contact_number, previous_school, track, elective_cluster, term1_elective, term2_elective, term3_elective } = req.body;
+    const { 
+        lrn, 
+        full_name, 
+        address, 
+        gmail, 
+        contact_number, 
+        previous_school, 
+        track, 
+        elective_cluster, 
+        term1_elective, 
+        term2_elective, 
+        term3_elective 
+    } = req.body;
+
     const refNum = 'LSHS-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
+    const cluster = elective_cluster || track;
 
     const sql = `INSERT INTO students (lrn, full_name, address, gmail, contact_number, previous_school, track, elective_cluster, term1_elective, term2_elective, term3_elective, reference_number) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    db.query(sql, [lrn, full_name, address, gmail, contact_number, previous_school, track, elective_cluster, term1_elective, term2_elective, term3_elective, refNum], (err) => {
+    db.query(sql, [lrn, full_name, address, gmail, contact_number, previous_school, track, cluster, term1_elective, term2_elective, term3_elective, refNum], (err) => {
         if (err) {
             console.error(err);
             return res.status(400).json({ error: 'LRN already registered or DB Error' });
@@ -56,7 +70,7 @@ app.post('/api/enroll', (req, res) => {
 
         // Send Confirmation Email via Nodemailer
         const mailOptions = {
-            from: '"Lemery Senior High School" <lshs.registrar.system@gmail.com>',
+            from: '"Lemery Senior High School" <nasisnorwood@gmail.com>',
             to: gmail,
             subject: 'LSHS Early Enrollment Confirmation Notice',
             html: `
@@ -68,7 +82,6 @@ app.post('/api/enroll', (req, res) => {
                     <hr style="border: 1px solid #D6C2B0;">
                     <p><strong>Reference Number:</strong> <span style="font-size: 1.2rem; color: #800000;">${refNum}</span></p>
                     <p><strong>Track:</strong> ${track}</p>
-                    <p><strong>Elective Cluster:</strong> ${elective_cluster}</p>
                     <ul>
                         <li><strong>Term 1 Elective:</strong> ${term1_elective}</li>
                         <li><strong>Term 2 Elective:</strong> ${term2_elective}</li>
@@ -119,4 +132,5 @@ app.get('/api/students', (req, res) => {
     });
 });
 
-app.listen(3000, () => console.log('Server active on http://localhost:3000'));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server active on http://localhost:${PORT}`));
