@@ -18,7 +18,7 @@ app.get('/', (req, res) => {
 const db = mysql.createPool({
   host: 'mysql-1fbd24b0-nasisnorwood-313d.l.aivencloud.com',
   user: 'avnadmin',
-  password: 'AVNS_URyxcYzwRckUVqVhsu3', // Fresh Reset Password
+  password: 'AVNS_URyxcYzwRckUVqVhsu3',
   database: 'defaultdb',
   port: 24169,
   waitForConnections: true,
@@ -27,6 +27,29 @@ const db = mysql.createPool({
   ssl: {
     rejectUnauthorized: false
   }
+});
+
+// AUTO-CREATE STUDENTS TABLE KUNG WALA PA SA AIVEN DB
+const createTableQuery = `
+CREATE TABLE IF NOT EXISTS students (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    lrn VARCHAR(50) UNIQUE NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    address TEXT,
+    gmail VARCHAR(255),
+    contact_number VARCHAR(50),
+    previous_school VARCHAR(255),
+    track VARCHAR(100),
+    term1_elective VARCHAR(100),
+    term2_elective VARCHAR(100),
+    term3_elective VARCHAR(100),
+    reference_number VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);`;
+
+db.query(createTableQuery, (err) => {
+    if (err) console.error('Error creating table:', err.message);
+    else console.log('Students table is ready in Aiven Database!');
 });
 
 // Gmail Nodemailer Setup
