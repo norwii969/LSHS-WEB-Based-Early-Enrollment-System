@@ -33,11 +33,12 @@ const db = mysql.createPool({
 const promiseDB = db.promise();
 
 // ==========================================
-// 2. CREATE AND CHECK STUDENTS TABLE
+// 2. CREATE AND CHECK TABLES (STUDENTS & PERSONNEL)
 // ==========================================
 
 async function initializeDatabase() {
-    const createTableQuery = `
+    // A. Create Students Table
+    const createStudentsTableQuery = `
         CREATE TABLE IF NOT EXISTS students (
             id INT AUTO_INCREMENT PRIMARY KEY,
             lrn VARCHAR(50) UNIQUE NOT NULL,
@@ -55,7 +56,7 @@ async function initializeDatabase() {
         )
     `;
 
-    await promiseDB.query(createTableQuery);
+    await promiseDB.query(createStudentsTableQuery);
 
     const requiredColumns = {
         lrn: 'VARCHAR(50) NULL',
@@ -86,7 +87,34 @@ async function initializeDatabase() {
         }
     }
 
-    console.log('Students table is ready in Aiven Database!');
+    // B. Create Personnel Table for Registrar Login
+    const createPersonnelTableQuery = `
+        CREATE TABLE IF NOT EXISTS personnel (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(100) UNIQUE NOT NULL,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            password VARCHAR(255) NOT NULL,
+            full_name VARCHAR(255),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `;
+
+    await promiseDB.query(createPersonnelTableQuery);
+
+    // C. Auto-insert default personnel accounts if empty
+    const [existingPersonnel] = await promiseDB.query('SELECT COUNT(*) AS count FROM personnel');
+    if (existingPersonnel[0].count === 0) {
+        const insertDefaultPersonnel = `
+            INSERT INTO personnel (username, email, password, full_name)
+            VALUES 
+            ('admin', 'admin@lshs.edu.ph', 'admin123', 'School Administrator'),
+            ('registrar', 'registrar@lshs.edu.ph', 'admin123', 'LSHS Registrar Office')
+        `;
+        await promiseDB.query(insertDefaultPersonnel);
+        console.log('Default personnel accounts created (admin/registrar)!');
+    }
+
+    console.log('Database tables ready in Aiven Database!');
 }
 
 // ==========================================
