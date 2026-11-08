@@ -1,36 +1,50 @@
+
 require('dotenv').config();
+
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
-const bodyParser = require('body-parser');
-const nodemailer = require('nodemailer');
 const path = require('path');
+const crypto = require('crypto');
+
 const app = express();
 
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// ==========================================
+// 1. DATABASE CONNECTION
+// ==========================================
 
-// Database Connection Pool
 const db = mysql.createPool({
-  host: 'mysql-1fbd24b0-nasisnorwood-313d.l.aivencloud.com',
-  user: 'avnadmin',
-  password: 'AVNS_URyxcYzwRckUVqVhsu3',
-  database: 'defaultdb',
-  port: 24169,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  ssl: {
-    rejectUnauthorized: false
-  }
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: Number(process.env.DB_PORT || 3306),
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
-// AUTO-CREATE STUDENTS TABLE KUNG WALA PA SA AIVEN DB
+db.getConnection((err, connection) => {
+    if (err) {
+        console.error('Database connection error:', err.message);
+        return;
+    }
+
+    console.log('Connected to Aiven Database!');
+    connection.release();
+});
+
+// ==========================================
+// 2. AUTO-CREATE STUDENTS TABLE
+// ==========================================
+
 const createTableQuery = `
 CREATE TABLE IF NOT EXISTS students (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -49,140 +63,305 @@ CREATE TABLE IF NOT EXISTS students (
 );`;
 
 db.query(createTableQuery, (err) => {
-    if (err) console.error('Error creating table:', err.message);
-    else console.log('Students table is ready in Aiven Database!');
-});
-
-// Gmail Nodemailer Setup (Gamit ang Port 465 SSL para sa Render)
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // true para sa Port 465
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-    tls: {
-        rejectUnauthorized: false
-    }
-});
-
-// Verification Check para sa Nodemailer SMTP Connection
-transporter.verify((error, success) => {
-    if (error) {
-        console.error('SMTP Transport Verification Error:', error.message);
+    if (err) {
+        console.error('Error creating students table:', err.message);
     } else {
-        console.log('Nodemailer SMTP Transporter is ready to send emails!');
+        console.log('Students table is ready!');
     }
 });
 
-// Endpoint: Student Enrollment Submission
+// ==========================================
+// 3. EMAILJS CONFIGURATION
+// ==========================================
+
+const EMAILJS_SERVICE_ID = process.env.EMAILJS_SERVICE_ID;
+const EMAILJS_TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_ID;
+const EMAILJS_PUBLIC_KEY = process.env.EMAILJS_PUBLIC_KEY;
+const EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY;
+
+// Send confirmation email using EmailJS REST API
+async function sendEnrollmentEmail(student, referenceNumber) {
+
+    const emailData = {
+        service_id: EMAILJS_SERVICE_ID,
+        template_id: EMAILJS_TEMPLATE_ID,
+        user_id: EMAILJS_PUBLIC_KEY,
+
+        template_params: {
+            to_email: student.gmail,
+            full_name: student.full_name,
+            lrn: student.lrn,
+            reference_number: referenceNumber,
+            track: student.track,
+            term1_elective: student.term1_elective,
+            term2_elective: student.term2_elective,
+            term3_elective: student.term3_elective
+        }
+    };
+
+    // Optional EmailJS private key
+    if (EMAILJS_PRIVATE_KEY) {
+        emailData.accessToken = EMAILJS_PRIVATE_KEY;
+    }
+
+    const response = await fetch(
+        'https://api.emailjs.com/api/v1.0/email/send',
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(emailData)
+        }
+    );
+
+    const responseText = await response.text();
+
+    if (!response.ok) {
+        throw new Error(
+            `EmailJS Error (${response.status}): ${responseText}`
+        );
+    }
+
+    console.log('Enrollment confirmation email sent:', responseText);
+
+    return true;
+}
+
+// ==========================================
+// 4. HOME PAGE
+// ==========================================
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// ==========================================
+// 5. STUDENT ENROLLMENT SUBMISSION
+// ==========================================
+
 app.post('/api/enroll', (req, res) => {
-    const { 
-        lrn, 
-        full_name, 
-        address, 
-        gmail, 
-        email, // Supporting alternative field name
-        contact_number, 
-        previous_school, 
-        track, 
-        term1_elective, 
-        term2_elective, 
-        term3_elective 
+
+    const {
+        lrn,
+        full_name,
+        address,
+        gmail,
+        email,
+        contact_number,
+        previous_school,
+        track,
+        term1_elective,
+        term2_elective,
+        term3_elective
     } = req.body;
 
     const recipientEmail = gmail || email;
-    const refNum = 'LSHS-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
 
-    const sql = `INSERT INTO students (lrn, full_name, address, gmail, contact_number, previous_school, track, term1_elective, term2_elective, term3_elective, reference_number) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-
-    db.query(sql, [lrn, full_name, address, recipientEmail, contact_number, previous_school, track, term1_elective, term2_elective, term3_elective, refNum], async (err) => {
-        if (err) {
-            console.error('EKSAKTONG MYSQL ERROR:', err.sqlMessage || err.message);
-            
-            if (err.code === 'ER_DUP_ENTRY') {
-                return res.status(400).json({ error: 'This LRN is already registered in the system.' });
-            }
-            return res.status(400).json({ error: `Database Error: ${err.sqlMessage || err.message}` });
-        }
-
-        // AGAD NA SUCCESS RESPONSE SA BROWSER
-        res.status(200).json({ success: true, reference_number: refNum });
-
-        // BACKGROUND EMAIL SENDING
-        if (recipientEmail) {
-            try {
-                const mailOptions = {
-                    from: `"Lemery Senior High School" <${process.env.EMAIL_USER}>`,
-                    to: recipientEmail,
-                    subject: 'LSHS Early Enrollment Confirmation Notice',
-                    html: `
-                        <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #800000; border-radius: 8px;">
-                            <h2 style="color: #800000;">Lemery Senior High School</h2>
-                            <h3>Grade 11 Early Enrollment Confirmation</h3>
-                            <p>Good day, <strong>${full_name}</strong>!</p>
-                            <p>Your Grade 11 Early Enrollment Form has been successfully received.</p>
-                            <hr style="border: 1px solid #D6C2B0;">
-                            <p><strong>Reference Number:</strong> <span style="font-size: 1.2rem; color: #800000;">${refNum}</span></p>
-                            <p><strong>Track:</strong> ${track}</p>
-                            <ul>
-                                <li><strong>Term 1 Elective:</strong> ${term1_elective}</li>
-                                <li><strong>Term 2 Elective:</strong> ${term2_elective}</li>
-                                <li><strong>Term 3 Elective:</strong> ${term3_elective}</li>
-                            </ul>
-                            <hr style="border: 1px solid #D6C2B0;">
-                            <p>Please keep this Reference Number for application verification at the Registrar's Office.</p>
-                            <br>
-                            <p>Thank you,<br><strong>LSHS Enrollment Committee</strong></p>
-                        </div>
-                    `
-                };
-
-                const info = await transporter.sendMail(mailOptions);
-                console.log('Notification email sent successfully:', info.response);
-            } catch (mailErr) {
-                console.error('Background Email Error:', mailErr.message);
-            }
-        } else {
-            console.error('Email not provided in submission request.');
-        }
-    });
-});
-
-// Endpoint: Registrar Login
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-
-    if ((username === 'admin' || username === 'registrar') && password === 'admin123') {
-        return res.status(200).json({ success: true, username: username });
+    // Basic validation
+    if (
+        !lrn ||
+        !full_name ||
+        !recipientEmail ||
+        typeof recipientEmail !== 'string' ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)
+    ) {
+        return res.status(400).json({
+            error: 'Please provide a valid LRN, full name, and Gmail address.'
+        });
     }
 
-    const sql = `SELECT * FROM personnel WHERE username = ? OR email = ?`;
+    // Check EmailJS configuration
+    if (
+        !EMAILJS_SERVICE_ID ||
+        !EMAILJS_TEMPLATE_ID ||
+        !EMAILJS_PUBLIC_KEY
+    ) {
+        console.error('EmailJS environment variables are incomplete.');
+
+        return res.status(500).json({
+            error: 'Email notification service is not configured.'
+        });
+    }
+
+    const refNum =
+        'LSHS-' +
+        new Date().getFullYear() +
+        '-' +
+        crypto.randomInt(1000, 10000);
+
+    const student = {
+        lrn,
+        full_name,
+        address,
+        gmail: recipientEmail,
+        contact_number,
+        previous_school,
+        track,
+        term1_elective,
+        term2_elective,
+        term3_elective
+    };
+
+    const sql = `
+        INSERT INTO students (
+            lrn,
+            full_name,
+            address,
+            gmail,
+            contact_number,
+            previous_school,
+            track,
+            term1_elective,
+            term2_elective,
+            term3_elective,
+            reference_number
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const values = [
+        student.lrn,
+        student.full_name,
+        student.address,
+        student.gmail,
+        student.contact_number,
+        student.previous_school,
+        student.track,
+        student.term1_elective,
+        student.term2_elective,
+        student.term3_elective,
+        refNum
+    ];
+
+    db.query(sql, values, async (err) => {
+
+        if (err) {
+
+            console.error('MYSQL ERROR:', err.message);
+
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(400).json({
+                    error: 'This LRN is already registered in the system.'
+                });
+            }
+
+            return res.status(500).json({
+                error: 'Unable to save enrollment information.'
+            });
+        }
+
+        // Send confirmation email after successful database insertion
+        try {
+
+            await sendEnrollmentEmail(student, refNum);
+
+            return res.status(200).json({
+                success: true,
+                email_sent: true,
+                message: 'Enrollment submitted and confirmation email sent successfully.',
+                reference_number: refNum
+            });
+
+        } catch (mailErr) {
+
+            console.error('EMAIL NOTIFICATION ERROR:', mailErr.message);
+
+            // Registration remains saved even if email delivery fails
+            return res.status(200).json({
+                success: true,
+                email_sent: false,
+                message: 'Enrollment saved, but email notification could not be sent.',
+                reference_number: refNum
+            });
+        }
+    });
+});
+
+// ==========================================
+// 6. REGISTRAR LOGIN
+// ==========================================
+
+app.post('/api/login', (req, res) => {
+
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({
+            error: 'Username and password are required.'
+        });
+    }
+
+    const sql = `
+        SELECT * FROM personnel
+        WHERE username = ? OR email = ?
+    `;
 
     db.query(sql, [username, username], (err, results) => {
-        if (err || results.length === 0) {
-            return res.status(401).json({ error: 'User not found in personnel records.' });
+
+        if (err) {
+            console.error('LOGIN DATABASE ERROR:', err.message);
+
+            return res.status(500).json({
+                error: 'Login service temporarily unavailable.'
+            });
         }
-        
+
+        if (results.length === 0) {
+            return res.status(401).json({
+                error: 'User not found in personnel records.'
+            });
+        }
+
         const user = results[0];
-        if (password === user.password || password === 'admin123') {
-            res.status(200).json({ success: true, username: user.username });
+
+        // Existing personnel password comparison
+        // Use securely hashed passwords before handling real student records.
+        if (password === user.password) {
+
+            return res.status(200).json({
+                success: true,
+                username: user.username
+            });
+
         } else {
-            res.status(401).json({ error: 'Incorrect password.' });
+
+            return res.status(401).json({
+                error: 'Incorrect password.'
+            });
         }
     });
 });
 
-// Endpoint: Fetch Applicants
+// ==========================================
+// 7. FETCH APPLICANTS
+// ==========================================
+
 app.get('/api/students', (req, res) => {
-    db.query('SELECT * FROM students ORDER BY created_at DESC', (err, results) => {
-        if (err) return res.status(500).json({ error: 'DB Error' });
-        res.status(200).json(results);
-    });
+
+    db.query(
+        'SELECT * FROM students ORDER BY created_at DESC',
+        (err, results) => {
+
+            if (err) {
+                console.error('FETCH STUDENTS ERROR:', err.message);
+
+                return res.status(500).json({
+                    error: 'Unable to retrieve student records.'
+                });
+            }
+
+            res.status(200).json(results);
+        }
+    );
 });
+
+// ==========================================
+// 8. START SERVER
+// ==========================================
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server active on http://localhost:${PORT}`));
+
+app.listen(PORT, () => {
+    console.log(`Server active on port ${PORT}`);
+});
