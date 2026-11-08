@@ -387,7 +387,33 @@ app.get('/api/students', (req, res) => {
 });
 
 // ==========================================
-// 8. START SERVER
+// 8. DELETE STUDENT APPLICANT
+// ==========================================
+
+app.delete('/api/students/:id', (req, res) => {
+    const studentId = req.params.id;
+
+    const sql = 'DELETE FROM students WHERE id = ?';
+
+    db.query(sql, [studentId], (err, result) => {
+        if (err) {
+            console.error('DELETE STUDENT ERROR:', err.message);
+            return res.status(500).json({ error: 'Unable to delete student record.' });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Student record not found.' });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Student record deleted successfully.'
+        });
+    });
+});
+
+// ==========================================
+// 9. START SERVER
 // ==========================================
 
 async function startServer() {

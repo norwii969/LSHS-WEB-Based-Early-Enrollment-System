@@ -183,6 +183,7 @@
               <th style="padding: 14px;">Term 1 Elective</th>
               <th style="padding: 14px;">Term 2 Elective</th>
               <th style="padding: 14px;">Term 3 Elective</th>
+              <th style="padding: 14px; text-align: center;">Action</th>
             </tr>
           </thead>
           <tbody id="studentsTableBody">
@@ -458,7 +459,7 @@
           tbody.innerHTML = '';
 
           if (!students || students.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 20px; color: #777;">No student submissions found in database.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 20px; color: #777;">No student submissions found in database.</td></tr>`;
           } else {
             students.forEach(st => {
               const tr = document.createElement('tr');
@@ -473,6 +474,13 @@
                 <td style="padding: 12px;">${st.term1_elective}</td>
                 <td style="padding: 12px;">${st.term2_elective}</td>
                 <td style="padding: 12px;">${st.term3_elective}</td>
+                <td style="padding: 12px; text-align: center;">
+                  <button 
+                    onclick="deleteStudent(${st.id}, '${st.full_name}')" 
+                    style="background: #dc3545; color: #ffffff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem; transition: background 0.2s;">
+                    Delete
+                  </button>
+                </td>
               `;
               tbody.appendChild(tr);
             });
@@ -483,7 +491,57 @@
       }
     }
 
-    // 5. Logout Button Logic
+    // 5. Delete Student Function with SweetAlert2 Confirmation
+    async function deleteStudent(studentId, studentName) {
+      const confirmResult = await Swal.fire({
+        title: 'Delete Student Record?',
+        text: `Are you sure you want to delete the enrollment record of ${studentName}? This action cannot be undone.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, Delete It!'
+      });
+
+      if (!confirmResult.isConfirmed) return;
+
+      try {
+        const response = await fetch(`/api/students/${studentId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Record Deleted!',
+            text: 'Student application record has been removed.',
+            timer: 1500,
+            showConfirmButton: false
+          });
+          loadEnrolledStudents();
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Delete Failed',
+            text: result.error || 'Could not delete the record.',
+            confirmButtonColor: '#800000'
+          });
+        }
+      } catch (err) {
+        console.error('Error deleting student:', err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Server Error',
+          text: 'An error occurred while deleting the student record.',
+          confirmButtonColor: '#800000'
+        });
+      }
+    }
+
+    // 6. Logout Button Logic
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) {
       btnLogout.addEventListener('click', function() {
