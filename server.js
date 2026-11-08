@@ -1,3 +1,4 @@
+require('dotenv').config(); // Kukunin ang EMAIL_USER at EMAIL_PASS mula sa .env file sa local
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
@@ -63,6 +64,15 @@ const transporter = nodemailer.createTransport({
     },
     tls: {
         rejectUnauthorized: false
+    }
+});
+
+// Verification Check para sa Nodemailer SMTP Connection
+transporter.verify((error, success) => {
+    if (error) {
+        console.error('SMTP Transport Verification Error:', error.message);
+    } else {
+        console.log('Nodemailer SMTP Transporter is ready to send emails!');
     }
 });
 
