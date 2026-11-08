@@ -31,44 +31,71 @@ const db = mysql.createPool({
     }
 });
 
-db.getConnection((err, connection) => {
-    if (err) {
-        console.error('Database connection error:', err.message);
-        return;
-    }
-
-    console.log('Connected to Aiven Database!');
-    connection.release();
-});
+const promiseDB = db.promise();
 
 // ==========================================
-// 2. AUTO-CREATE STUDENTS TABLE
+// 2. CREATE AND CHECK STUDENTS TABLE
 // ==========================================
 
-const createTableQuery = `
-CREATE TABLE IF NOT EXISTS students (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    lrn VARCHAR(50) UNIQUE NOT NULL,
-    full_name VARCHAR(255) NOT NULL,
-    address TEXT,
-    gmail VARCHAR(255),
-    contact_number VARCHAR(50),
-    previous_school VARCHAR(255),
-    track VARCHAR(100),
-    term1_elective VARCHAR(100),
-    term2_elective VARCHAR(100),
-    term3_elective VARCHAR(100),
-    reference_number VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);`;
+async function initializeDatabase() {
 
-db.query(createTableQuery, (err) => {
-    if (err) {
-        console.error('Error creating students table:', err.message);
-    } else {
-        console.log('Students table is ready!');
+    const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS students (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            lrn VARCHAR(50) UNIQUE NOT NULL,
+            full_name VARCHAR(255) NOT NULL,
+            address TEXT,
+            gmail VARCHAR(255),
+            contact_number VARCHAR(50),
+            previous_school VARCHAR(255),
+            track VARCHAR(100),
+            term1_elective VARCHAR(100),
+            term2_elective VARCHAR(100),
+            term3_elective VARCHAR(100),
+            reference_number VARCHAR(100),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `;
+
+    await promiseDB.query(createTableQuery);
+
+    // Add missing columns to an existing students table.
+    // This helps prevent INSERT errors caused by older table structures.
+
+    const requiredColumns = {
+        lrn: 'VARCHAR(50) NULL',
+        full_name: 'VARCHAR(255) NULL',
+        address: 'TEXT NULL',
+        gmail: 'VARCHAR(255) NULL',
+        contact_number: 'VARCHAR(50) NULL',
+        previous_school: 'VARCHAR(255) NULL',
+        track: 'VARCHAR(100) NULL',
+        term1_elective: 'VARCHAR(100) NULL',
+        term2_elective: 'VARCHAR(100) NULL',
+        term3_elective: 'VARCHAR(100) NULL',
+        reference_number: 'VARCHAR(100) NULL',
+        created_at: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+    };
+
+    for (const [column, definition] of Object.entries(requiredColumns)) {
+
+        const [existingColumns] = await promiseDB.query(
+            'SHOW COLUMNS FROM students LIKE ?',
+            [column]
+        );
+
+        if (existingColumns.length === 0) {
+
+            await promiseDB.query(
+                `ALTER TABLE students ADD COLUMN \`${column}\` ${definition}`
+            );
+
+            console.log(`Added missing column: ${column}`);
+        }
     }
-});
+
+    console.log('Students table is ready in Aiven Database!');
+}
 
 // ==========================================
 // 3. EMAILJS CONFIGURATION
@@ -79,8 +106,15 @@ const EMAILJS_TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_ID;
 const EMAILJS_PUBLIC_KEY = process.env.EMAILJS_PUBLIC_KEY;
 const EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY;
 
-// Send confirmation email using EmailJS REST API
 async function sendEnrollmentEmail(student, referenceNumber) {
+
+    if (
+        !EMAILJS_SERVICE_ID ||
+        !EMAILJS_TEMPLATE_ID ||
+        !EMAILJS_PUBLIC_KEY
+    ) {
+        throw new Error('EmailJS environment variables are incomplete.');
+    }
 
     const emailData = {
         service_id: EMAILJS_SERVICE_ID,
@@ -92,14 +126,13 @@ async function sendEnrollmentEmail(student, referenceNumber) {
             full_name: student.full_name,
             lrn: student.lrn,
             reference_number: referenceNumber,
-            track: student.track,
-            term1_elective: student.term1_elective,
-            term2_elective: student.term2_elective,
-            term3_elective: student.term3_elective
+            track: student.track || '',
+            term1_elective: student.term1_elective || '',
+            term2_elective: student.term2_elective || '',
+            term3_elective: student.term3_elective || ''
         }
     };
 
-    // Optional EmailJS private key
     if (EMAILJS_PRIVATE_KEY) {
         emailData.accessToken = EMAILJS_PRIVATE_KEY;
     }
@@ -137,146 +170,162 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// 5. STUDENT ENROLLMENT SUBMISSION
+// 5. STUDENT ENROLLMENT
 // ==========================================
 
-app.post('/api/enroll', (req, res) => {
+async function handleEnrollment(req, res) {
 
-    const {
-        lrn,
-        full_name,
-        address,
-        gmail,
-        email,
-        contact_number,
-        previous_school,
-        track,
-        term1_elective,
-        term2_elective,
-        term3_elective
-    } = req.body;
+    try {
 
-    const recipientEmail = gmail || email;
-
-    // Basic validation
-    if (
-        !lrn ||
-        !full_name ||
-        !recipientEmail ||
-        typeof recipientEmail !== 'string' ||
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)
-    ) {
-        return res.status(400).json({
-            error: 'Please provide a valid LRN, full name, and Gmail address.'
-        });
-    }
-
-    // Check EmailJS configuration
-    if (
-        !EMAILJS_SERVICE_ID ||
-        !EMAILJS_TEMPLATE_ID ||
-        !EMAILJS_PUBLIC_KEY
-    ) {
-        console.error('EmailJS environment variables are incomplete.');
-
-        return res.status(500).json({
-            error: 'Email notification service is not configured.'
-        });
-    }
-
-    const refNum =
-        'LSHS-' +
-        new Date().getFullYear() +
-        '-' +
-        crypto.randomInt(1000, 10000);
-
-    const student = {
-        lrn,
-        full_name,
-        address,
-        gmail: recipientEmail,
-        contact_number,
-        previous_school,
-        track,
-        term1_elective,
-        term2_elective,
-        term3_elective
-    };
-
-    const sql = `
-        INSERT INTO students (
+        const {
             lrn,
             full_name,
             address,
             gmail,
+            email,
             contact_number,
             previous_school,
             track,
             term1_elective,
             term2_elective,
-            term3_elective,
-            reference_number
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+            term3_elective
+        } = req.body || {};
 
-    const values = [
-        student.lrn,
-        student.full_name,
-        student.address,
-        student.gmail,
-        student.contact_number,
-        student.previous_school,
-        student.track,
-        student.term1_elective,
-        student.term2_elective,
-        student.term3_elective,
-        refNum
-    ];
+        const recipientEmail = gmail || email;
 
-    db.query(sql, values, async (err) => {
+        // Validate required information
 
-        if (err) {
-
-            console.error('MYSQL ERROR:', err.message);
-
-            if (err.code === 'ER_DUP_ENTRY') {
-                return res.status(400).json({
-                    error: 'This LRN is already registered in the system.'
-                });
-            }
-
-            return res.status(500).json({
-                error: 'Unable to save enrollment information.'
+        if (
+            !lrn ||
+            !full_name ||
+            !recipientEmail ||
+            typeof recipientEmail !== 'string' ||
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)
+        ) {
+            return res.status(400).json({
+                error: 'Please provide a valid LRN, full name, and email address.'
             });
         }
 
-        // Send confirmation email after successful database insertion
+        const student = {
+            lrn: String(lrn).trim(),
+            full_name: String(full_name).trim(),
+            address: address || '',
+            gmail: recipientEmail.trim(),
+            contact_number: contact_number || '',
+            previous_school: previous_school || '',
+            track: track || '',
+            term1_elective: term1_elective || '',
+            term2_elective: term2_elective || '',
+            term3_elective: term3_elective || ''
+        };
+
+        const referenceNumber =
+            'LSHS-' +
+            new Date().getFullYear() +
+            '-' +
+            crypto.randomInt(1000, 10000);
+
+        const sql = `
+            INSERT INTO students (
+                lrn,
+                full_name,
+                address,
+                gmail,
+                contact_number,
+                previous_school,
+                track,
+                term1_elective,
+                term2_elective,
+                term3_elective,
+                reference_number
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        const values = [
+            student.lrn,
+            student.full_name,
+            student.address,
+            student.gmail,
+            student.contact_number,
+            student.previous_school,
+            student.track,
+            student.term1_elective,
+            student.term2_elective,
+            student.term3_elective,
+            referenceNumber
+        ];
+
+        // Save enrollment information first.
+
+        await promiseDB.query(sql, values);
+
+        console.log(
+            'ENROLLMENT SAVED:',
+            referenceNumber
+        );
+
+        // Send email after successful database insertion.
+
         try {
 
-            await sendEnrollmentEmail(student, refNum);
+            await sendEnrollmentEmail(
+                student,
+                referenceNumber
+            );
 
             return res.status(200).json({
                 success: true,
                 email_sent: true,
-                message: 'Enrollment submitted and confirmation email sent successfully.',
-                reference_number: refNum
+                message: 'Enrollment submitted successfully. Confirmation email sent.',
+                reference_number: referenceNumber
             });
 
         } catch (mailErr) {
 
-            console.error('EMAIL NOTIFICATION ERROR:', mailErr.message);
+            console.error(
+                'EMAIL NOTIFICATION ERROR:',
+                mailErr.message
+            );
 
-            // Registration remains saved even if email delivery fails
+            // Enrollment is already saved.
+
             return res.status(200).json({
                 success: true,
                 email_sent: false,
                 message: 'Enrollment saved, but email notification could not be sent.',
-                reference_number: refNum
+                reference_number: referenceNumber
             });
         }
-    });
-});
+
+    } catch (err) {
+
+        console.error('ENROLLMENT DATABASE ERROR:', {
+            code: err.code,
+            message: err.message,
+            sqlMessage: err.sqlMessage
+        });
+
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({
+                error: 'This LRN is already registered in the system.'
+            });
+        }
+
+        return res.status(500).json({
+            error: 'Unable to save enrollment information.',
+            details: process.env.NODE_ENV === 'development'
+                ? err.message
+                : undefined
+        });
+    }
+}
+
+// Support both possible frontend endpoint paths.
+
+app.post('/api/enroll', handleEnrollment);
+app.post('/enroll', handleEnrollment);
 
 // ==========================================
 // 6. REGISTRAR LOGIN
@@ -284,7 +333,7 @@ app.post('/api/enroll', (req, res) => {
 
 app.post('/api/login', (req, res) => {
 
-    const { username, password } = req.body;
+    const { username, password } = req.body || {};
 
     if (!username || !password) {
         return res.status(400).json({
@@ -300,6 +349,7 @@ app.post('/api/login', (req, res) => {
     db.query(sql, [username, username], (err, results) => {
 
         if (err) {
+
             console.error('LOGIN DATABASE ERROR:', err.message);
 
             return res.status(500).json({
@@ -315,8 +365,9 @@ app.post('/api/login', (req, res) => {
 
         const user = results[0];
 
-        // Existing personnel password comparison
-        // Use securely hashed passwords before handling real student records.
+        // Existing password comparison.
+        // Use securely hashed passwords before real deployment.
+
         if (password === user.password) {
 
             return res.status(200).json({
@@ -344,7 +395,11 @@ app.get('/api/students', (req, res) => {
         (err, results) => {
 
             if (err) {
-                console.error('FETCH STUDENTS ERROR:', err.message);
+
+                console.error(
+                    'FETCH STUDENTS ERROR:',
+                    err.message
+                );
 
                 return res.status(500).json({
                     error: 'Unable to retrieve student records.'
@@ -360,8 +415,27 @@ app.get('/api/students', (req, res) => {
 // 8. START SERVER
 // ==========================================
 
-const PORT = process.env.PORT || 3000;
+async function startServer() {
 
-app.listen(PORT, () => {
-    console.log(`Server active on port ${PORT}`);
-});
+    try {
+
+        await initializeDatabase();
+
+        const PORT = process.env.PORT || 3000;
+
+        app.listen(PORT, () => {
+            console.log(`Server active on port ${PORT}`);
+        });
+
+    } catch (err) {
+
+        console.error(
+            'SERVER STARTUP / DATABASE ERROR:',
+            err.message
+        );
+
+        process.exit(1);
+    }
+}
+
+startServer();
