@@ -1,4 +1,4 @@
-require('dotenv').config(); // Kukunin ang EMAIL_USER at EMAIL_PASS mula sa .env file sa local
+require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
@@ -15,7 +15,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Database Connection Pool (Gamit ang Bagong Reset Password)
+// Database Connection Pool
 const db = mysql.createPool({
   host: 'mysql-1fbd24b0-nasisnorwood-313d.l.aivencloud.com',
   user: 'avnadmin',
@@ -53,11 +53,12 @@ db.query(createTableQuery, (err) => {
     else console.log('Students table is ready in Aiven Database!');
 });
 
-// Gmail Nodemailer Setup (Gumagamit na ng Port 587 para sa Render Free Tier)
+// Gmail Nodemailer Setup (Gamit ang Port 465 SSL para sa Render)
 const transporter = nodemailer.createTransport({
+    service: 'gmail',
     host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // false para sa port 587
+    port: 465,
+    secure: true, // true para sa Port 465
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -83,6 +84,7 @@ app.post('/api/enroll', (req, res) => {
         full_name, 
         address, 
         gmail, 
+        email, // Supporting alternative field name
         contact_number, 
         previous_school, 
         track, 
@@ -91,12 +93,13 @@ app.post('/api/enroll', (req, res) => {
         term3_elective 
     } = req.body;
 
+    const recipientEmail = gmail || email;
     const refNum = 'LSHS-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
 
     const sql = `INSERT INTO students (lrn, full_name, address, gmail, contact_number, previous_school, track, term1_elective, term2_elective, term3_elective, reference_number) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    db.query(sql, [lrn, full_name, address, gmail, contact_number, previous_school, track, term1_elective, term2_elective, term3_elective, refNum], (err) => {
+    db.query(sql, [lrn, full_name, address, recipientEmail, contact_number, previous_school, track, term1_elective, term2_elective, term3_elective, refNum], async (err) => {
         if (err) {
             console.error('EKSAKTONG MYSQL ERROR:', err.sqlMessage || err.message);
             
@@ -110,42 +113,41 @@ app.post('/api/enroll', (req, res) => {
         res.status(200).json({ success: true, reference_number: refNum });
 
         // BACKGROUND EMAIL SENDING
-        try {
-            const mailOptions = {
-                from: `"Lemery Senior High School" <${process.env.EMAIL_USER}>`,
-                to: gmail,
-                subject: 'LSHS Early Enrollment Confirmation Notice',
-                html: `
-                    <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #800000; border-radius: 8px;">
-                        <h2 style="color: #800000;">Lemery Senior High School</h2>
-                        <h3>Grade 11 Early Enrollment Confirmation</h3>
-                        <p>Good day, <strong>${full_name}</strong>!</p>
-                        <p>Your Grade 11 Early Enrollment Form has been successfully received.</p>
-                        <hr style="border: 1px solid #D6C2B0;">
-                        <p><strong>Reference Number:</strong> <span style="font-size: 1.2rem; color: #800000;">${refNum}</span></p>
-                        <p><strong>Track:</strong> ${track}</p>
-                        <ul>
-                            <li><strong>Term 1 Elective:</strong> ${term1_elective}</li>
-                            <li><strong>Term 2 Elective:</strong> ${term2_elective}</li>
-                            <li><strong>Term 3 Elective:</strong> ${term3_elective}</li>
-                        </ul>
-                        <hr style="border: 1px solid #D6C2B0;">
-                        <p>Please keep this Reference Number for application verification at the Registrar's Office.</p>
-                        <br>
-                        <p>Thank you,<br><strong>LSHS Enrollment Committee</strong></p>
-                    </div>
-                `
-            };
+        if (recipientEmail) {
+            try {
+                const mailOptions = {
+                    from: `"Lemery Senior High School" <${process.env.EMAIL_USER}>`,
+                    to: recipientEmail,
+                    subject: 'LSHS Early Enrollment Confirmation Notice',
+                    html: `
+                        <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #800000; border-radius: 8px;">
+                            <h2 style="color: #800000;">Lemery Senior High School</h2>
+                            <h3>Grade 11 Early Enrollment Confirmation</h3>
+                            <p>Good day, <strong>${full_name}</strong>!</p>
+                            <p>Your Grade 11 Early Enrollment Form has been successfully received.</p>
+                            <hr style="border: 1px solid #D6C2B0;">
+                            <p><strong>Reference Number:</strong> <span style="font-size: 1.2rem; color: #800000;">${refNum}</span></p>
+                            <p><strong>Track:</strong> ${track}</p>
+                            <ul>
+                                <li><strong>Term 1 Elective:</strong> ${term1_elective}</li>
+                                <li><strong>Term 2 Elective:</strong> ${term2_elective}</li>
+                                <li><strong>Term 3 Elective:</strong> ${term3_elective}</li>
+                            </ul>
+                            <hr style="border: 1px solid #D6C2B0;">
+                            <p>Please keep this Reference Number for application verification at the Registrar's Office.</p>
+                            <br>
+                            <p>Thank you,<br><strong>LSHS Enrollment Committee</strong></p>
+                        </div>
+                    `
+                };
 
-            transporter.sendMail(mailOptions, (mailErr) => {
-                if (mailErr) {
-                    console.error('Background Email Error:', mailErr.message);
-                } else {
-                    console.log('Notification email sent successfully to:', gmail);
-                }
-            });
-        } catch (emailException) {
-            console.error('Email Exception:', emailException.message);
+                const info = await transporter.sendMail(mailOptions);
+                console.log('Notification email sent successfully:', info.response);
+            } catch (mailErr) {
+                console.error('Background Email Error:', mailErr.message);
+            }
+        } else {
+            console.error('Email not provided in submission request.');
         }
     });
 });
