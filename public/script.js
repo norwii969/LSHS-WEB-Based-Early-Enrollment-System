@@ -1,309 +1,411 @@
-const API_URL = '/api';
+let globalStudentsData = [];
 
-const personnelLoginBtn = document.getElementById('personnelLoginBtn');
-const loginModal = document.getElementById('loginModal');
-const closeModal = document.getElementById('closeModal');
+document.addEventListener('DOMContentLoaded', () => {
+  fetch('/api/students').catch(() => {});
+  updateElectives();
 
-const enrollmentForm = document.getElementById('enrollmentForm');
-const loginForm = document.getElementById('loginForm');
-
-const studentSection = document.getElementById('studentSection');
-const personnelView = document.getElementById('personnelView');
-const logoutBtn = document.getElementById('logoutBtn');
-
-const successModal = document.getElementById('successModal');
-const closeSuccess = document.getElementById('closeSuccess');
-const refDisplay = document.getElementById('refDisplay');
-// Isasara ang modal kapag pinindot ang 'Close' button
-closeSuccess.addEventListener('click', () => {
-  successModal.style.display = 'none';
-  enrollmentForm.reset(); // I-reset ang form matapos mag-submit
-});
-const electiveArea = document.getElementById('electiveArea');
-const electiveCluster = document.getElementById('electiveCluster');
-
-const term1Select = document.getElementById('term1Elective');
-const term2Select = document.getElementById('term2Elective');
-const term3Select = document.getElementById('term3Elective');
-
-// New Curriculum Elective Mapping per Cluster
-
-// Kapag nagbago ang napiling strand, saka lang lalabas ang tamang electives para sa track na 'yun
-if (strandSelect) {
-    strandSelect.addEventListener('change', function() {
-        const selectedStrand = this.value;
-        const availableElectives = electiveData[selectedTrack]?.[selectedStrand] || [];
-        
-        electiveSelects.forEach(sel => {
-            if (sel) {
-                sel.innerHTML = '<option value="">Select Elective</option>';
-                availableElectives.forEach(item => {
-                    const opt = document.createElement('option');
-                    opt.value = item;
-                    opt.textContent = item;
-                    sel.appendChild(opt);
-                });
-            }
-        });
+  // Enforce 12-digit numeric constraint on LRN input
+  const lrnInput = document.getElementById('lrn');
+  if (lrnInput) {
+    lrnInput.addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/[^0-9]/g, '');
     });
-}
-// Open/Close Login Modal
-personnelLoginBtn.addEventListener('click', () => loginModal.classList.add('show'));
-closeModal.addEventListener('click', () => loginModal.classList.remove('show'));
-
-// Track Radio Listener -> Load Clusters
-document.querySelectorAll('input[name="track"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-        const selectedTrack = e.target.value;
-        electiveArea.classList.remove('hidden');
-
-        // Update Stepper
-        document.getElementById('step2').classList.add('active');
-        document.getElementById('line1').classList.add('active');
-
-        // Reset Options
-        electiveCluster.innerHTML = '<option value="">-- Select Elective Cluster --</option>';
-        resetTermDropdowns('-- Select Cluster First --');
-
-        const clusters = Object.keys(electiveData[selectedTrack]);
-        clusters.forEach(cluster => {
-            const opt = document.createElement('option');
-            opt.value = cluster;
-            opt.textContent = cluster;
-            electiveCluster.appendChild(opt);
-        });
-    });
+  }
 });
 
-function resetTermDropdowns(placeholderText) {
-    [term1Select, term2Select, term3Select].forEach(select => {
-        select.innerHTML = `<option value="">${placeholderText}</option>`;
-        select.disabled = true;
-    });
+const electivesData = {
+  "Academic Track": {
+    term1: ["Computer Programming / ICT", "Basic Entrepreneurship", "Journalism & Creative Writing", "Speech and Stage Arts"],
+    term2: ["Web Development Basics", "Financial Literacy & Accounting", "Environmental Science", "Digital Media & Arts"],
+    term3: ["Advanced Computer Science", "Business Plan & Innovation", "Research & Data Analytics", "Work Immersion Elective"]
+  },
+  "TVL Track": {
+    term1: ["Computer Systems Servicing (CSS)", "Cookery & Culinary Basics", "Bread & Pastry Production", "Electrical Installation & Maintenance"],
+    term2: ["Network Fundamentals & Cabling", "Food & Beverage Service", "Commercial Cooking", "Shielded Metal Arc Welding (SMAW)"],
+    term3: ["TVL Work Immersion / OJT", "Technical Drafting & CAD", "Automotive Servicing", "Agri-Crop Production"]
+  }
+};
+
+function updateElectives() {
+  const selectedTrackInput = document.querySelector('input[name="track"]:checked');
+  if (!selectedTrackInput) return;
+
+  const selectedTrack = selectedTrackInput.value;
+  const data = electivesData[selectedTrack];
+
+  if (data) {
+    populateDropdown('term1Elective', data.term1, 'Select Term 1');
+    populateDropdown('term2Elective', data.term2, 'Select Term 2');
+    populateDropdown('term3Elective', data.term3, 'Select Term 3');
+  }
 }
 
-// Cluster Select Listener -> Load Elective Courses into 3 Terms
-electiveCluster.addEventListener('change', (e) => {
-    const selectedTrack = document.querySelector('input[name="track"]:checked').value;
-    const selectedCluster = e.target.value;
+function populateDropdown(selectId, options, placeholder) {
+  const selectElem = document.getElementById(selectId);
+  if (!selectElem) return;
 
-    if (selectedCluster && electiveData[selectedTrack][selectedCluster]) {
-        const courses = electiveData[selectedTrack][selectedCluster];
-
-        [term1Select, term2Select, term3Select].forEach((select, idx) => {
-            select.innerHTML = `<option value="">-- Select Term ${idx + 1} Elective --</option>`;
-            select.disabled = false;
-            courses.forEach(course => {
-                const opt = document.createElement('option');
-                opt.value = course;
-                opt.textContent = course;
-                select.appendChild(opt);
-            });
-        });
-    } else {
-        resetTermDropdowns('-- Select Cluster First --');
-    }
-});
-
-// Submit Enrollment Form
-enrollmentForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const selectedTrack = document.querySelector('input[name="track"]:checked');
-    if (!selectedTrack) {
-        alert('Please choose a curriculum track.');
-        return;
-    }
-
-    const payload = {
-        lrn: document.getElementById('lrn').value,
-        full_name: document.getElementById('fullName').value,
-        address: document.getElementById('address').value,
-        gmail: document.getElementById('gmail').value,
-        contact_number: document.getElementById('contactNumber').value,
-        previous_school: document.getElementById('prevSchool').value,
-        track: selectedTrack.value,
-        elective_cluster: electiveCluster.value,
-        term1_elective: term1Select.value,
-        term2_elective: term2Select.value,
-        term3_elective: term3Select.value
-    };
-
-    try {
-        const response = await fetch(`${API_URL}/enroll`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        const result = await response.json();
-        if (response.ok) {
-            refDisplay.textContent = result.reference_number;
-            successModal.style.display = 'flex';
-            enrollmentForm.reset();
-            electiveArea.classList.add('hidden');
-        } else {
-            alert(result.error || 'Submission failed');
-        }
-    } catch (err) {
-        alert('Cannot reach the server.');
-    }
-});
-
-closeSuccess.addEventListener('click', () => {
-  successModal.style.display = 'none';
-});
-
-// Personnel Login
-loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-
-    try {
-        const response = await fetch(`${API_URL}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            loginModal.classList.remove('show');
-            studentSection.classList.add('hidden');
-            personnelView.classList.remove('hidden');
-            loadStudents();
-        } else {
-            alert(data.error || 'Invalid credentials');
-        }
-    } catch (err) {
-        alert('Authentication server unavailable.');
-    }
-});
-
-logoutBtn.addEventListener('click', () => {
-    personnelView.classList.add('hidden');
-    studentSection.classList.remove('hidden');
-});
-
-async function loadStudents() {
-    try {
-        const res = await fetch(`${API_URL}/students`);
-        const data = await res.json();
-        const tbody = document.querySelector('#applicantsTable tbody');
-        tbody.innerHTML = '';
-
-        data.forEach(s => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><strong>${s.reference_number}</strong></td>
-                <td>${s.lrn}</td>
-                <td>${s.full_name}</td>
-                <td>${s.track}</td>
-                <td>${s.elective_cluster}</td>
-                <td>${s.term1_elective}</td>
-                <td>${s.term2_elective}</td>
-                <td>${s.term3_elective}</td>
-                <td>${new Date(s.created_at).toLocaleDateString()}</td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (err) {
-        console.error('Failed to load table content', err);
-    }
-}
-
-// Pigilan ang page reload at magpakita ng Success Message pagka-submit
-const enrollmentForm = document.querySelector('form');
-
-if (enrollmentForm) {
-  enrollmentForm.addEventListener('submit', async function (e) {
-    e.preventDefault(); // PIGILAN ANG DEFAULT REFRESH NG PAGE
-
-    const formData = new FormData(this);
-    const data = Object.fromEntries(formData.entries());
-
-    try {
-      const response = await fetch('/enroll', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (response.ok) {
-        alert('🎉 Enrollment Submitted Successfully!\n\nSalamat! Ang iyong application para sa Grade 11 Early Enrollment ay matagumpay na naipasa.');
-        this.reset(); // I-clear ang mga input fields
-      } else {
-        alert('⚠️ Nagkaroon ng problema sa pag-submit. Pakisubukan ulit.');
-      }
-    } catch (error) {
-      console.error('Error submitting form:', error);
-      alert('🎉 Enrollment Submitted Successfully!\n\nNaitala na ang iyong impormasyon sa system.');
-      this.reset();
-    }
+  selectElem.innerHTML = `<option value="" disabled selected>${placeholder}</option>`;
+  
+  options.forEach(opt => {
+    const optionNode = document.createElement('option');
+    optionNode.value = opt;
+    optionNode.textContent = opt;
+    selectElem.appendChild(optionNode);
   });
 }
 
-// --- FIX PARA SA TRACK AT ELECTIVES SEPARATION ---
-document.addEventListener('change', function(e) {
-    if (e.target.matches('input[name="track"]')) {
-        const trackVal = e.target.value.toLowerCase();
-        const electiveSelects = document.querySelectorAll('select[id*="Elective"], .elective-select');
-        
-        let targetOptions = [];
-        if (trackVal.includes('academic')) {
-            targetOptions = [
-                "Humanities & Social Sciences Focus",
-                "Journalism & Creative Writing",
-                "Speech and Stage Arts",
-                "General Academic Subject",
-                "Advanced Mathematics 1",
-                "General Chemistry",
-                "Basic Accounting 1"
-            ];
-        } else {
-            targetOptions = [
-                "Computer Programming / ICT",
-                "Basic Entrepreneurship",
-                "HE / Cookery",
-                "Animation NC II",
-                "Technical Drafting NC II"
-            ];
-        }
-
-        electiveSelects.forEach(select => {
-            select.innerHTML = '<option value="">Select Term</option>';
-            targetOptions.forEach(item => {
-                const opt = document.createElement('option');
-                opt.value = item;
-                opt.textContent = item;
-                select.appendChild(opt);
-            });
-        });
-    }
+document.querySelectorAll('input[name="track"]').forEach(radio => {
+  radio.addEventListener('change', updateElectives);
 });
 
-// Awtomatikong alisin ang TVL subjects kapag Academic ang pinili
-document.addEventListener('DOMContentLoaded', () => {
-    const observer = new MutationObserver(() => {
-        document.querySelectorAll('select[id*="Elective"], .elective-select').forEach(select => {
-            Array.from(select.options).forEach(opt => {
-                if (opt.text.includes('Computer Programming') || opt.text.includes('Entrepreneurship')) {
-                    opt.remove();
-                }
-            });
-        });
+// Submit Enrollment Form Logic with SweetAlert2
+document.getElementById('enrollmentForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const lrnValue = document.getElementById('lrn').value;
+  if (lrnValue.length !== 12) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Invalid LRN',
+      text: 'Learner Reference Number (LRN) must be exactly 12 digits.',
+      confirmButtonColor: '#800000'
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    return;
+  }
+
+  const formData = {
+    lrn: lrnValue,
+    full_name: document.getElementById('fullName').value,
+    address: document.getElementById('address').value,
+    gmail: document.getElementById('gmail').value,
+    contact_number: document.getElementById('contact').value,
+    previous_school: document.getElementById('prevSchool').value,
+    track: document.querySelector('input[name="track"]:checked').value,
+    term1_elective: document.getElementById('term1Elective').value,
+    term2_elective: document.getElementById('term2Elective').value,
+    term3_elective: document.getElementById('term3Elective').value
+  };
+
+  Swal.fire({
+    title: 'Submitting Enrollment...',
+    text: 'Please wait...',
+    allowOutsideClick: false,
+    didOpen: () => { Swal.showLoading(); }
+  });
+
+  try {
+    const response = await fetch('/api/enroll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    });
+
+    const result = await response.json();
+    Swal.close();
+
+    if (response.ok && result.success) {
+      Swal.fire({
+        title: 'Enrollment Submitted!',
+        html: `
+          <p style="font-size: 0.95rem; color: #444; margin-bottom: 15px;">
+            Thank you for registering! Your application has been saved and a confirmation email has been sent to <strong>${formData.gmail}</strong>.
+          </p>
+          <div style="background-color: #fdf0f0; padding: 12px; border-radius: 8px; border: 1px dashed #800000;">
+            <span style="font-size: 0.85rem; color: #666; display: block;">Your Reference Number:</span>
+            <strong style="font-size: 1.3rem; color: #800000; letter-spacing: 1px;">${result.reference_number}</strong>
+          </div>
+          <p style="font-size: 0.8rem; color: #777; margin-top: 12px;">
+            Please save or take a screenshot of your reference number for verification.
+          </p>
+        `,
+        icon: 'success',
+        confirmButtonText: 'Great, Thanks!',
+        confirmButtonColor: '#800000'
+      }).then(() => {
+        document.getElementById('enrollmentForm').reset();
+        updateElectives();
+      });
+    } else {
+      Swal.fire({
+        title: 'Submission Failed',
+        text: result.error || 'LRN is already registered or Database Error.',
+        icon: 'error',
+        confirmButtonColor: '#800000'
+      });
+    }
+  } catch (error) {
+    Swal.close();
+    Swal.fire({
+      title: 'Server Error',
+      text: 'Could not connect to the server. Please ensure the server is active.',
+      icon: 'error',
+      confirmButtonColor: '#800000'
+    });
+  }
 });
 
-// Direktang alert kapag na-click ang submit button
-document.addEventListener('click', function(e) {
-    if (e.target && e.target.type === 'submit') {
-        alert('🎉 Submitted Successfully! Naitala na ang iyong early enrollment application.');
+// Personnel Login Logic
+document.getElementById('btnPersonnelLogin').addEventListener('click', function(e) {
+  e.preventDefault();
+
+  Swal.fire({
+    title: 'Personnel Login',
+    html: `
+      <input type="text" id="adminUser" class="swal2-input" placeholder="Username">
+      <input type="password" id="adminPass" class="swal2-input" placeholder="Password">
+    `,
+    confirmButtonText: 'Sign In',
+    confirmButtonColor: '#800000',
+    showCancelButton: true,
+    focusConfirm: false,
+    preConfirm: () => {
+      const username = Swal.getPopup().querySelector('#adminUser').value;
+      const password = Swal.getPopup().querySelector('#adminPass').value;
+      if (!username || !password) {
+        Swal.showValidationMessage(`Please enter your username and password`);
+      }
+      return { username: username, password: password };
     }
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(result.value)
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Welcome Back!',
+            text: 'Successfully logged in as Personnel.',
+            timer: 1000,
+            showConfirmButton: false
+          });
+
+          switchToPersonnelMode();
+          loadEnrolledStudents();
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Access Denied',
+            text: data.error || 'Invalid username or password!',
+            confirmButtonColor: '#800000'
+          });
+        }
+      } catch (err) {
+        Swal.fire({ 
+          icon: 'error', 
+          title: 'Connection Error', 
+          text: 'Cannot connect to backend server.',
+          confirmButtonColor: '#800000'
+        });
+      }
+    }
+  });
 });
+
+function switchToPersonnelMode() {
+  document.getElementById('studentPublicView').style.display = 'none';
+  document.getElementById('navLinksList').style.display = 'none';
+  document.getElementById('navButtonsContainer').style.display = 'none';
+
+  const dashboard = document.getElementById('adminDashboardSection');
+  if (dashboard) {
+    dashboard.style.cssText = "display: block !important; padding: 20px 4% 60px !important;";
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+function switchToStudentMode() {
+  document.getElementById('studentPublicView').style.display = 'block';
+  document.getElementById('navLinksList').style.display = 'flex';
+  document.getElementById('navButtonsContainer').style.display = 'flex';
+
+  const dashboard = document.getElementById('adminDashboardSection');
+  if (dashboard) {
+    dashboard.style.cssText = "display: none !important;";
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function loadEnrolledStudents() {
+  try {
+    const response = await fetch('/api/students');
+    const students = await response.json();
+    globalStudentsData = students || [];
+
+    updateSummaryCards(globalStudentsData);
+    renderTableRows(globalStudentsData);
+  } catch (err) {
+    console.error('Failed to fetch students:', err);
+  }
+}
+
+function updateSummaryCards(students) {
+  const total = students.length;
+  const acad = students.filter(s => s.track === 'Academic Track').length;
+  const tvl = students.filter(s => s.track === 'TVL Track').length;
+
+  document.getElementById('statTotalEnrollees').textContent = total;
+  document.getElementById('statAcademicCount').textContent = acad;
+  document.getElementById('statTvlCount').textContent = tvl;
+}
+
+function renderTableRows(students) {
+  const tbody = document.getElementById('studentsTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!students || students.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 20px; color: #777;">No matching student submissions found.</td></tr>`;
+    return;
+  }
+
+  students.forEach(st => {
+    const tr = document.createElement('tr');
+    const trackBadgeClass = st.track === 'Academic Track' ? 'badge-track-acad' : 'badge-track-tvl';
+
+    tr.innerHTML = `
+      <td style="padding: 12px 16px; font-weight: 700; color: #800000;">${st.reference_number || 'N/A'}</td>
+      <td style="padding: 12px 16px;">${st.lrn}</td>
+      <td style="padding: 12px 16px;"><strong>${st.full_name}</strong></td>
+      <td style="padding: 12px 16px;">${st.gmail}</td>
+      <td style="padding: 12px 16px;">${st.contact_number}</td>
+      <td style="padding: 12px 16px;"><span class="${trackBadgeClass}">${st.track}</span></td>
+      <td style="padding: 12px 16px;">${st.term1_elective}</td>
+      <td style="padding: 12px 16px;">${st.term2_elective}</td>
+      <td style="padding: 12px 16px;">${st.term3_elective}</td>
+      <td style="padding: 12px 16px; text-align: center;">
+        <button 
+          onclick="deleteStudent(${st.id}, '${st.full_name}')" 
+          style="background: #dc3545; color: #ffffff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem; transition: background 0.2s;">
+          Delete
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function filterDashboardData() {
+  const query = document.getElementById('dashboardSearch').value.toLowerCase().trim();
+  const trackFilter = document.getElementById('dashboardFilterTrack').value;
+
+  const filtered = globalStudentsData.filter(st => {
+    const matchQuery = (st.full_name || '').toLowerCase().includes(query) ||
+                       (st.lrn || '').toLowerCase().includes(query) ||
+                       (st.reference_number || '').toLowerCase().includes(query);
+    const matchTrack = trackFilter === 'ALL' || st.track === trackFilter;
+
+    return matchQuery && matchTrack;
+  });
+
+  renderTableRows(filtered);
+}
+
+document.getElementById('dashboardSearch').addEventListener('input', filterDashboardData);
+document.getElementById('dashboardFilterTrack').addEventListener('change', filterDashboardData);
+
+// Export CSV / Excel Functionality
+document.getElementById('btnExportCSV').addEventListener('click', () => {
+  if (!globalStudentsData || globalStudentsData.length === 0) {
+    Swal.fire({
+      icon: 'info',
+      title: 'No Data to Export',
+      text: 'There are currently no student enrollment records available to export.',
+      confirmButtonColor: '#800000'
+    });
+    return;
+  }
+
+  const headers = ["Ref. No.", "LRN", "Full Name", "Gmail", "Contact", "Address", "Previous School", "Track", "Term 1 Elective", "Term 2 Elective", "Term 3 Elective"];
+  const rows = globalStudentsData.map(st => [
+    `"${st.reference_number || ''}"`,
+    `"${st.lrn || ''}"`,
+    `"${st.full_name || ''}"`,
+    `"${st.gmail || ''}"`,
+    `"${st.contact_number || ''}"`,
+    `"${st.address || ''}"`,
+    `"${st.previous_school || ''}"`,
+    `"${st.track || ''}"`,
+    `"${st.term1_elective || ''}"`,
+    `"${st.term2_elective || ''}"`,
+    `"${st.term3_elective || ''}"`
+  ]);
+
+  const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `LSHS_Early_Enrollment_Records_${new Date().toISOString().slice(0,10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+});
+
+async function deleteStudent(studentId, studentName) {
+  const confirmResult = await Swal.fire({
+    title: 'Delete Student Record?',
+    text: `Are you sure you want to delete the enrollment record of ${studentName}? This action cannot be undone.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc3545',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'Yes, Delete It!'
+  });
+
+  if (!confirmResult.isConfirmed) return;
+
+  try {
+    const response = await fetch(`/api/students/${studentId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Record Deleted!',
+        text: 'Student application record has been removed.',
+        timer: 1500,
+        showConfirmButton: false
+      });
+      loadEnrolledStudents();
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Delete Failed',
+        text: result.error || 'Could not delete the record.',
+        confirmButtonColor: '#800000'
+      });
+    }
+  } catch (err) {
+    console.error('Error deleting student:', err);
+    Swal.fire({
+      icon: 'error',
+      title: 'Server Error',
+      text: 'An error occurred while deleting the student record.',
+      confirmButtonColor: '#800000'
+    });
+  }
+}
+
+const btnLogout = document.getElementById('btnLogout');
+if (btnLogout) {
+  btnLogout.addEventListener('click', function() {
+    switchToStudentMode();
+    Swal.fire({
+      icon: 'info',
+      title: 'Logged Out',
+      text: 'You have been signed out of the Personnel Dashboard.',
+      timer: 1500,
+      showConfirmButton: false
+    });
+  });
+}
