@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lemery Senior High School Early Enrollment System</title>
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
   <!-- SweetAlert2 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
@@ -159,19 +159,23 @@
     </section>
   </div>
 
-  <!-- Dedicated Admin Dashboard Section (Hidden on Public View + Horizontal Scrollable Table) -->
+  <!-- Dedicated Admin Dashboard Section (Styled & Horizontal Scrollable) -->
   <section id="adminDashboardSection" class="admin-dashboard" style="display: none !important;">
     <div class="admin-card">
       <div class="admin-header">
-        <div>
+        <div class="admin-title-area">
+          <span class="admin-badge">ADMINISTRATOR PANEL</span>
           <h2>Registrar Personnel Dashboard</h2>
-          <p>Overview of registered Grade 11 student applications.</p>
+          <p>Overview of registered Grade 11 student applications</p>
         </div>
-        <button id="btnLogout" class="btn-logout">Logout Dashboard</button>
+        <button id="btnLogout" class="btn-logout">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          Logout Dashboard
+        </button>
       </div>
       
-      <div class="table-responsive" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-        <table style="width: 100%; min-width: 900px; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+      <div class="table-responsive">
+        <table class="dashboard-table">
           <thead>
             <tr>
               <th>Ref. No.</th>
@@ -421,18 +425,17 @@
           } else {
             students.forEach(st => {
               const tr = document.createElement('tr');
-              tr.style.borderBottom = '1px solid #e2e8f0';
               tr.innerHTML = `
-                <td style="padding: 12px; font-weight: 700; color: #800000;">${st.reference_number || 'N/A'}</td>
-                <td style="padding: 12px;">${st.lrn}</td>
-                <td style="padding: 12px;"><strong>${st.full_name}</strong></td>
-                <td style="padding: 12px;">${st.gmail}</td>
-                <td style="padding: 12px;">${st.contact_number}</td>
-                <td style="padding: 12px;">${st.track}</td>
-                <td style="padding: 12px;">${st.term1_elective}</td>
-                <td style="padding: 12px;">${st.term2_elective}</td>
-                <td style="padding: 12px;">${st.term3_elective}</td>
-                <td style="padding: 12px; text-align: center;">
+                <td style="padding: 12px 16px; font-weight: 700; color: #800000;">${st.reference_number || 'N/A'}</td>
+                <td style="padding: 12px 16px;">${st.lrn}</td>
+                <td style="padding: 12px 16px;"><strong>${st.full_name}</strong></td>
+                <td style="padding: 12px 16px;">${st.gmail}</td>
+                <td style="padding: 12px 16px;">${st.contact_number}</td>
+                <td style="padding: 12px 16px;">${st.track}</td>
+                <td style="padding: 12px 16px;">${st.term1_elective}</td>
+                <td style="padding: 12px 16px;">${st.term2_elective}</td>
+                <td style="padding: 12px 16px;">${st.term3_elective}</td>
+                <td style="padding: 12px 16px; text-align: center;">
                   <button 
                     onclick="deleteStudent(${st.id}, '${st.full_name}')" 
                     style="background: #dc3545; color: #ffffff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem; transition: background 0.2s;">
