@@ -455,8 +455,78 @@ html, body {
   opacity: 0.15 !important;
 }
 
+/* ==========================================
+   ADMIN DASHBOARD & HORIZONTAL SCROLL STYLES
+   ========================================== */
+.admin-dashboard {
+  display: none;
+  padding: 40px 6% 80px;
+  min-height: 80vh;
+}
+
+.admin-card {
+  background: #ffffff;
+  padding: 32px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 16px;
+}
+
+.btn-logout {
+  background: var(--primary-maroon);
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: background 0.2s;
+}
+
+.btn-logout:hover {
+  background: var(--dark-maroon);
+}
+
+/* Table Horizontal Scroll Container */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 15px;
+}
+
+.table-responsive table {
+  width: 100%;
+  min-width: 900px !important;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.table-responsive th, 
+.table-responsive td {
+  padding: 12px 14px;
+  white-space: nowrap;
+}
+
+.table-responsive thead tr {
+  background-color: var(--soft-pink);
+  color: var(--primary-maroon);
+  border-bottom: 2px solid var(--primary-maroon);
+}
+
 /* ==========================================================================
-   MOBILE & TABLET RESPONSIVE STYLES (ENHANCED)
+   MOBILE & TABLET RESPONSIVE STYLES
    ========================================================================== */
 
 @media (max-width: 900px) {
@@ -490,7 +560,7 @@ html, body {
   }
 
   .hero-design-wrapper {
-    display: none; /* Itago ang hero lines sa mobile para malinis */
+    display: none;
   }
 
   .main-container {
@@ -513,6 +583,16 @@ html, body {
   .bg-line-main, .bg-line-sub, .bg-line-gold {
     opacity: 0.05 !important;
     right: -20px !important;
+  }
+
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .btn-logout {
+    width: 100%;
   }
 }
 

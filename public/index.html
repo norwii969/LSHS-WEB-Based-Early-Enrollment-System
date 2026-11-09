@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lemery Senior High School Early Enrollment System</title>
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
   <!-- SweetAlert2 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
@@ -159,8 +159,8 @@
     </section>
   </div>
 
-  <!-- Dedicated Admin Dashboard Section -->
-  <section id="adminDashboardSection" class="admin-dashboard">
+  <!-- Dedicated Admin Dashboard Section (Hidden on Public View + Horizontal Scrollable Table) -->
+  <section id="adminDashboardSection" class="admin-dashboard" style="display: none !important;">
     <div class="admin-card">
       <div class="admin-header">
         <div>
@@ -170,8 +170,8 @@
         <button id="btnLogout" class="btn-logout">Logout Dashboard</button>
       </div>
       
-      <div class="table-responsive">
-        <table>
+      <div class="table-responsive" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <table style="width: 100%; min-width: 900px; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
           <thead>
             <tr>
               <th>Ref. No.</th>
