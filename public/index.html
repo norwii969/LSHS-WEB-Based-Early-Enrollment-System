@@ -4,17 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lemery Senior High School Early Enrollment System</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
   <!-- SweetAlert2 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
 
   <!-- Navbar -->
-  <nav class="navbar" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 6%;">
-    <div class="logo-container" style="display: flex; align-items: center; gap: 10px;">
-      <img src="12.png" alt="LSHS Logo" style="height: 32px; width: 32px; max-height: 32px; max-width: 32px; object-fit: contain; display: block;">
-      <span class="logo-text" style="font-size: 1rem; font-weight: 800; color: #4a0000; letter-spacing: 0.5px; line-height: 1; margin: 0;">LEMERY SENIOR HIGH SCHOOL</span>
+  <nav class="navbar">
+    <div class="logo-container">
+      <img src="12.png" alt="LSHS Logo">
+      <span class="logo-text">LEMERY SENIOR HIGH SCHOOL</span>
     </div>
     <ul class="nav-links" id="navLinksList">
       <li><a href="#">Home</a></li>
@@ -32,11 +32,11 @@
   <!-- Public Student View Wrapper (Itatago pag nag-login ang Personnel) -->
   <div id="studentPublicView">
     <!-- Hero Section -->
-    <section class="hero-section" style="position: relative; overflow: hidden; z-index: 1;">
-      <div class="hero-bg-lines" style="position: absolute; top: 0; right: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none;">
-        <div style="position: absolute; width: 140px; height: 580px; background: linear-gradient(135deg, #a00000 0%, #700000 100%); right: 10%; top: -100px; transform: rotate(-35deg); border-radius: 40px; opacity: 0.35;"></div>
-        <div style="position: absolute; width: 80px; height: 500px; background: #800000; right: 22%; top: -50px; transform: rotate(-35deg); border-radius: 40px; opacity: 0.25;"></div>
-        <div style="position: absolute; width: 32px; height: 400px; background: #d4af37; right: 5%; top: 0px; transform: rotate(-35deg); border-radius: 40px; opacity: 0.50;"></div>
+    <section class="hero-section">
+      <div class="hero-bg-lines">
+        <div class="bg-shape line-1"></div>
+        <div class="bg-shape line-2"></div>
+        <div class="bg-shape line-3"></div>
       </div>
 
       <div class="hero-content">
@@ -128,7 +128,7 @@
           <div class="electives-section">
             <h3>New Curriculum Electives (3 Terms)</h3>
             
-            <div class="form-row 3-cols">
+            <div class="form-row three-cols">
               <div class="form-group">
                 <label for="term1Elective">Preferred Elective (Term 1)</label>
                 <select id="term1Elective" name="term1Elective" required>
@@ -159,31 +159,31 @@
     </section>
   </div>
 
-  <!-- Dedicated Admin Dashboard Section (Exclusive Screen View) -->
-  <section id="adminDashboardSection" style="display: none; padding: 40px 6% 80px; min-height: 80vh;">
-    <div style="background: #ffffff; padding: 32px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.06);">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 2px solid #f0f0f0; padding-bottom: 16px;">
+  <!-- Dedicated Admin Dashboard Section -->
+  <section id="adminDashboardSection" class="admin-dashboard">
+    <div class="admin-card">
+      <div class="admin-header">
         <div>
-          <h2 style="color: #800000; font-size: 1.8rem; font-weight: 800; margin: 0;">Registrar Personnel Dashboard</h2>
-          <p style="color: #666; font-size: 0.95rem; margin: 6px 0 0;">Overview of registered Grade 11 student applications.</p>
+          <h2>Registrar Personnel Dashboard</h2>
+          <p>Overview of registered Grade 11 student applications.</p>
         </div>
-        <button id="btnLogout" style="background: #800000; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.95rem; transition: background 0.2s;">Logout Dashboard</button>
+        <button id="btnLogout" class="btn-logout">Logout Dashboard</button>
       </div>
       
-      <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+      <div class="table-responsive">
+        <table>
           <thead>
-            <tr style="background-color: #fdf0f0; color: #800000; border-bottom: 2px solid #800000;">
-              <th style="padding: 14px;">Ref. No.</th>
-              <th style="padding: 14px;">LRN</th>
-              <th style="padding: 14px;">Full Name</th>
-              <th style="padding: 14px;">Gmail</th>
-              <th style="padding: 14px;">Contact</th>
-              <th style="padding: 14px;">Track</th>
-              <th style="padding: 14px;">Term 1 Elective</th>
-              <th style="padding: 14px;">Term 2 Elective</th>
-              <th style="padding: 14px;">Term 3 Elective</th>
-              <th style="padding: 14px; text-align: center;">Action</th>
+            <tr>
+              <th>Ref. No.</th>
+              <th>LRN</th>
+              <th>Full Name</th>
+              <th>Gmail</th>
+              <th>Contact</th>
+              <th>Track</th>
+              <th>Term 1 Elective</th>
+              <th>Term 2 Elective</th>
+              <th>Term 3 Elective</th>
+              <th style="text-align: center;">Action</th>
             </tr>
           </thead>
           <tbody id="studentsTableBody">
@@ -196,53 +196,21 @@
 
   <!-- Complete JavaScript Logic -->
   <script>
-    // 0. Instant Server Warm-up (Ginigising agad ang Render habang binubuksan ang page)
     document.addEventListener('DOMContentLoaded', () => {
       fetch('/api/students').catch(() => {});
       updateElectives();
     });
 
-    // 1. Electives Data Loading (Academic vs TVL)
     const electivesData = {
       "Academic Track": {
-        term1: [
-          "Computer Programming / ICT",
-          "Basic Entrepreneurship",
-          "Journalism & Creative Writing",
-          "Speech and Stage Arts"
-        ],
-        term2: [
-          "Web Development Basics",
-          "Financial Literacy & Accounting",
-          "Environmental Science",
-          "Digital Media & Arts"
-        ],
-        term3: [
-          "Advanced Computer Science",
-          "Business Plan & Innovation",
-          "Research & Data Analytics",
-          "Work Immersion Elective"
-        ]
+        term1: ["Computer Programming / ICT", "Basic Entrepreneurship", "Journalism & Creative Writing", "Speech and Stage Arts"],
+        term2: ["Web Development Basics", "Financial Literacy & Accounting", "Environmental Science", "Digital Media & Arts"],
+        term3: ["Advanced Computer Science", "Business Plan & Innovation", "Research & Data Analytics", "Work Immersion Elective"]
       },
       "TVL Track": {
-        term1: [
-          "Computer Systems Servicing (CSS)",
-          "Cookery & Culinary Basics",
-          "Bread & Pastry Production",
-          "Electrical Installation & Maintenance"
-        ],
-        term2: [
-          "Network Fundamentals & Cabling",
-          "Food & Beverage Service",
-          "Commercial Cooking",
-          "Shielded Metal Arc Welding (SMAW)"
-        ],
-        term3: [
-          "TVL Work Immersion / OJT",
-          "Technical Drafting & CAD",
-          "Automotive Servicing",
-          "Agri-Crop Production"
-        ]
+        term1: ["Computer Systems Servicing (CSS)", "Cookery & Culinary Basics", "Bread & Pastry Production", "Electrical Installation & Maintenance"],
+        term2: ["Network Fundamentals & Cabling", "Food & Beverage Service", "Commercial Cooking", "Shielded Metal Arc Welding (SMAW)"],
+        term3: ["TVL Work Immersion / OJT", "Technical Drafting & CAD", "Automotive Servicing", "Agri-Crop Production"]
       }
     };
 
@@ -278,7 +246,6 @@
       radio.addEventListener('change', updateElectives);
     });
 
-    // 2. Student Enrollment Submission (Instant Response Logic with Swal.close)
     document.getElementById('enrollmentForm').addEventListener('submit', async function(e) {
       e.preventDefault();
 
@@ -310,8 +277,6 @@
         });
 
         const result = await response.json();
-
-        // Agad isara ang loading spinner pagka-respond ng backend
         Swal.close();
 
         if (response.ok && result.success) {
@@ -355,7 +320,6 @@
       }
     });
 
-    // 3. Personnel Login Trigger & Secure Input Modal
     document.getElementById('btnPersonnelLogin').addEventListener('click', function(e) {
       e.preventDefault();
 
@@ -397,7 +361,6 @@
                 showConfirmButton: false
               });
 
-              // Switch to Dedicated Personnel Panel Mode
               switchToPersonnelMode();
               loadEnrolledStudents();
             } else {
@@ -420,22 +383,18 @@
       });
     });
 
-    // Function to hide Student View and show Dedicated Dashboard
     function switchToPersonnelMode() {
-      // Hide student enrollment view and nav links
       document.getElementById('studentPublicView').style.display = 'none';
       document.getElementById('navLinksList').style.display = 'none';
       document.getElementById('navButtonsContainer').style.display = 'none';
 
-      // Show Personnel Dashboard section
       const dashboard = document.getElementById('adminDashboardSection');
       if (dashboard) {
-        dashboard.style.cssText = "display: block !important; padding: 40px 6% 80px !important;";
+        dashboard.style.cssText = "display: block !important; padding: 20px 4% 60px !important;";
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }
 
-    // Function to return to Public Student View
     function switchToStudentMode() {
       document.getElementById('studentPublicView').style.display = 'block';
       document.getElementById('navLinksList').style.display = 'flex';
@@ -448,7 +407,6 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // 4. Load Enrolled Students Table
     async function loadEnrolledStudents() {
       try {
         const response = await fetch('/api/students');
@@ -491,7 +449,6 @@
       }
     }
 
-    // 5. Delete Student Function with SweetAlert2 Confirmation
     async function deleteStudent(studentId, studentName) {
       const confirmResult = await Swal.fire({
         title: 'Delete Student Record?',
@@ -541,7 +498,6 @@
       }
     }
 
-    // 6. Logout Button Logic
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) {
       btnLogout.addEventListener('click', function() {
