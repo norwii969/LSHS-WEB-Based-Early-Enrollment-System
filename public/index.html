@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lemery Senior High School Early Enrollment System</title>
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
   <!-- SweetAlert2 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
@@ -79,8 +79,8 @@
         <form id="enrollmentForm">
           <div class="form-row">
             <div class="form-group">
-              <label for="lrn">LRN</label>
-              <input type="text" id="lrn" name="lrn" placeholder="Enter LRN" required>
+              <label for="lrn">Learner Reference Number (LRN)</label>
+              <input type="text" id="lrn" name="lrn" placeholder="12-digit DepEd LRN" maxlength="12" pattern="[0-9]{12}" title="LRN must be exactly 12 digits" required>
             </div>
             <div class="form-group">
               <label for="fullName">Full Name</label>
@@ -94,7 +94,7 @@
           </div>
 
           <div class="form-group">
-            <label for="gmail">Gmail</label>
+            <label for="gmail">Gmail Address</label>
             <input type="email" id="gmail" name="gmail" placeholder="Enter Gmail Address" required>
           </div>
 
@@ -159,7 +159,7 @@
     </section>
   </div>
 
-  <!-- Dedicated Admin Dashboard Section (Styled & Horizontal Scrollable) -->
+  <!-- Dedicated Admin Dashboard Section (Enhanced with Stats, Controls & Export) -->
   <section id="adminDashboardSection" class="admin-dashboard" style="display: none !important;">
     <div class="admin-card">
       <div class="admin-header">
@@ -171,6 +171,38 @@
         <button id="btnLogout" class="btn-logout">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
           Logout Dashboard
+        </button>
+      </div>
+
+      <!-- Dashboard Summary Stats Cards -->
+      <div class="dashboard-stats-grid">
+        <div class="stat-card">
+          <span class="stat-title">Total Enrollees</span>
+          <h3 id="statTotalEnrollees">0</h3>
+        </div>
+        <div class="stat-card">
+          <span class="stat-title">Academic Track</span>
+          <h3 id="statAcademicCount">0</h3>
+        </div>
+        <div class="stat-card">
+          <span class="stat-title">TVL Track</span>
+          <h3 id="statTvlCount">0</h3>
+        </div>
+      </div>
+
+      <!-- Live Search, Filter & CSV Export Toolbar -->
+      <div class="dashboard-controls">
+        <div class="search-filter-group">
+          <input type="text" id="dashboardSearch" placeholder="Search Full Name, LRN or Ref. No..." class="dash-input">
+          <select id="dashboardFilterTrack" class="dash-select">
+            <option value="ALL">All Curriculum Tracks</option>
+            <option value="Academic Track">Academic Track</option>
+            <option value="TVL Track">TVL Track</option>
+          </select>
+        </div>
+        <button id="btnExportCSV" class="btn-export">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Export CSV / Excel
         </button>
       </div>
       
@@ -200,9 +232,19 @@
 
   <!-- Complete JavaScript Logic -->
   <script>
+    let globalStudentsData = [];
+
     document.addEventListener('DOMContentLoaded', () => {
       fetch('/api/students').catch(() => {});
       updateElectives();
+
+      // Enforce 12-digit numeric constraint on LRN input
+      const lrnInput = document.getElementById('lrn');
+      if (lrnInput) {
+        lrnInput.addEventListener('input', (e) => {
+          e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        });
+      }
     });
 
     const electivesData = {
@@ -253,8 +295,19 @@
     document.getElementById('enrollmentForm').addEventListener('submit', async function(e) {
       e.preventDefault();
 
+      const lrnValue = document.getElementById('lrn').value;
+      if (lrnValue.length !== 12) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Invalid LRN',
+          text: 'Learner Reference Number (LRN) must be exactly 12 digits.',
+          confirmButtonColor: '#800000'
+        });
+        return;
+      }
+
       const formData = {
-        lrn: document.getElementById('lrn').value,
+        lrn: lrnValue,
         full_name: document.getElementById('fullName').value,
         address: document.getElementById('address').value,
         gmail: document.getElementById('gmail').value,
@@ -415,42 +468,117 @@
       try {
         const response = await fetch('/api/students');
         const students = await response.json();
+        globalStudentsData = students || [];
 
-        const tbody = document.getElementById('studentsTableBody');
-        if (tbody) {
-          tbody.innerHTML = '';
-
-          if (!students || students.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 20px; color: #777;">No student submissions found in database.</td></tr>`;
-          } else {
-            students.forEach(st => {
-              const tr = document.createElement('tr');
-              tr.innerHTML = `
-                <td style="padding: 12px 16px; font-weight: 700; color: #800000;">${st.reference_number || 'N/A'}</td>
-                <td style="padding: 12px 16px;">${st.lrn}</td>
-                <td style="padding: 12px 16px;"><strong>${st.full_name}</strong></td>
-                <td style="padding: 12px 16px;">${st.gmail}</td>
-                <td style="padding: 12px 16px;">${st.contact_number}</td>
-                <td style="padding: 12px 16px;">${st.track}</td>
-                <td style="padding: 12px 16px;">${st.term1_elective}</td>
-                <td style="padding: 12px 16px;">${st.term2_elective}</td>
-                <td style="padding: 12px 16px;">${st.term3_elective}</td>
-                <td style="padding: 12px 16px; text-align: center;">
-                  <button 
-                    onclick="deleteStudent(${st.id}, '${st.full_name}')" 
-                    style="background: #dc3545; color: #ffffff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem; transition: background 0.2s;">
-                    Delete
-                  </button>
-                </td>
-              `;
-              tbody.appendChild(tr);
-            });
-          }
-        }
+        updateSummaryCards(globalStudentsData);
+        renderTableRows(globalStudentsData);
       } catch (err) {
         console.error('Failed to fetch students:', err);
       }
     }
+
+    function updateSummaryCards(students) {
+      const total = students.length;
+      const acad = students.filter(s => s.track === 'Academic Track').length;
+      const tvl = students.filter(s => s.track === 'TVL Track').length;
+
+      document.getElementById('statTotalEnrollees').textContent = total;
+      document.getElementById('statAcademicCount').textContent = acad;
+      document.getElementById('statTvlCount').textContent = tvl;
+    }
+
+    function renderTableRows(students) {
+      const tbody = document.getElementById('studentsTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      if (!students || students.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 20px; color: #777;">No matching student submissions found.</td></tr>`;
+        return;
+      }
+
+      students.forEach(st => {
+        const tr = document.createElement('tr');
+        const trackBadgeClass = st.track === 'Academic Track' ? 'badge-track-acad' : 'badge-track-tvl';
+
+        tr.innerHTML = `
+          <td style="padding: 12px 16px; font-weight: 700; color: #800000;">${st.reference_number || 'N/A'}</td>
+          <td style="padding: 12px 16px;">${st.lrn}</td>
+          <td style="padding: 12px 16px;"><strong>${st.full_name}</strong></td>
+          <td style="padding: 12px 16px;">${st.gmail}</td>
+          <td style="padding: 12px 16px;">${st.contact_number}</td>
+          <td style="padding: 12px 16px;"><span class="${trackBadgeClass}">${st.track}</span></td>
+          <td style="padding: 12px 16px;">${st.term1_elective}</td>
+          <td style="padding: 12px 16px;">${st.term2_elective}</td>
+          <td style="padding: 12px 16px;">${st.term3_elective}</td>
+          <td style="padding: 12px 16px; text-align: center;">
+            <button 
+              onclick="deleteStudent(${st.id}, '${st.full_name}')" 
+              style="background: #dc3545; color: #ffffff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem; transition: background 0.2s;">
+              Delete
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Live Search and Track Filter Logic
+    function filterDashboardData() {
+      const query = document.getElementById('dashboardSearch').value.toLowerCase().trim();
+      const trackFilter = document.getElementById('dashboardFilterTrack').value;
+
+      const filtered = globalStudentsData.filter(st => {
+        const matchQuery = (st.full_name || '').toLowerCase().includes(query) ||
+                           (st.lrn || '').toLowerCase().includes(query) ||
+                           (st.reference_number || '').toLowerCase().includes(query);
+        const matchTrack = trackFilter === 'ALL' || st.track === trackFilter;
+
+        return matchQuery && matchTrack;
+      });
+
+      renderTableRows(filtered);
+    }
+
+    document.getElementById('dashboardSearch').addEventListener('input', filterDashboardData);
+    document.getElementById('dashboardFilterTrack').addEventListener('change', filterDashboardData);
+
+    // Export Records to CSV / Excel File
+    document.getElementById('btnExportCSV').addEventListener('click', () => {
+      if (!globalStudentsData || globalStudentsData.length === 0) {
+        Swal.fire({
+          icon: 'info',
+          title: 'No Data to Export',
+          text: 'There are currently no student enrollment records available to export.',
+          confirmButtonColor: '#800000'
+        });
+        return;
+      }
+
+      const headers = ["Ref. No.", "LRN", "Full Name", "Gmail", "Contact", "Address", "Previous School", "Track", "Term 1 Elective", "Term 2 Elective", "Term 3 Elective"];
+      const rows = globalStudentsData.map(st => [
+        `"${st.reference_number || ''}"`,
+        `"${st.lrn || ''}"`,
+        `"${st.full_name || ''}"`,
+        `"${st.gmail || ''}"`,
+        `"${st.contact_number || ''}"`,
+        `"${st.address || ''}"`,
+        `"${st.previous_school || ''}"`,
+        `"${st.track || ''}"`,
+        `"${st.term1_elective || ''}"`,
+        `"${st.term2_elective || ''}"`,
+        `"${st.term3_elective || ''}"`
+      ]);
+
+      const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `LSHS_Early_Enrollment_Records_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
 
     async function deleteStudent(studentId, studentName) {
       const confirmResult = await Swal.fire({
