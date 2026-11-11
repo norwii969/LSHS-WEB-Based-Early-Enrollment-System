@@ -23,6 +23,8 @@
       <li><a href="#">About Us</a></li>
     </ul>
     <div class="nav-buttons" id="navButtonsContainer">
+      <!-- Request Correction Button for Students -->
+      <a href="#" id="btnStudentRequestEdit" class="btn-secondary" style="border-color: #cca43b; color: #8a6d0b;">📩 Request Edit</a>
       <!-- Personnel Login Button -->
       <a href="#" id="btnPersonnelLogin" class="btn-secondary">Personnel Login</a>
       <a href="#enroll-form" class="btn-primary">Enroll Now</a>
@@ -179,7 +181,7 @@
         </div>
       </div>
 
-      <!-- Dashboard Summary Stats Cards -->
+      <!-- Dashboard Summary Stats Cards (Added Request Counter) -->
       <div class="dashboard-stats-grid">
         <div class="stat-card">
           <span class="stat-title">Total Enrollees</span>
@@ -192,6 +194,10 @@
         <div class="stat-card">
           <span class="stat-title">TVL Track</span>
           <h3 id="statTvlCount">0</h3>
+        </div>
+        <div class="stat-card" style="background: #fff8e6; border-color: rgba(204, 164, 59, 0.3);">
+          <span class="stat-title" style="color: #8a6d0b;">Edit Requests</span>
+          <h3 id="statRequestsCount" style="color: #8a6d0b;">0</h3>
         </div>
       </div>
 
@@ -210,7 +216,8 @@
           Export CSV / Excel
         </button>
       </div>
-      
+
+      <!-- Student Enrollees Table -->
       <div class="table-responsive">
         <table class="dashboard-table">
           <thead>
@@ -232,10 +239,35 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Incoming Correction Requests Section -->
+      <div style="margin-top: 40px; border-top: 2px dashed #e2e8f0; padding-top: 24px;">
+        <h3 style="color: #800000; font-size: 1.1rem; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          📩 Pending Student Correction Requests
+        </h3>
+        <div class="table-responsive">
+          <table class="dashboard-table">
+            <thead>
+              <tr style="background-color: #5a0000;">
+                <th>Ref. No.</th>
+                <th>LRN</th>
+                <th>Student Name</th>
+                <th>Requested Changes / Notes</th>
+                <th>Request Date</th>
+                <th style="text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="requestsTableBody">
+              <!-- Dynamically populated via JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   </section>
 
   <!-- Linked External JavaScript File -->
-  <script src="script.js?v=3"></script>
+  <script src="script.js?v=4"></script>
 </body>
 </html>

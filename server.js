@@ -33,7 +33,7 @@ const db = mysql.createPool({
 const promiseDB = db.promise();
 
 // ==========================================
-// 2. CREATE AND CHECK TABLES (STUDENTS & PERSONNEL)
+// 2. CREATE AND CHECK TABLES (STUDENTS, PERSONNEL, REQUESTS)
 // ==========================================
 
 async function initializeDatabase() {
@@ -101,7 +101,20 @@ async function initializeDatabase() {
 
     await promiseDB.query(createPersonnelTableQuery);
 
-    // C. Auto-insert default personnel accounts if empty
+    // C. Create Correction Requests Table (IDINAGDAG)
+    const createRequestsTableQuery = `
+        CREATE TABLE IF NOT EXISTS correction_requests (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            student_id INT NOT NULL,
+            reference_number VARCHAR(100) NOT NULL,
+            lrn VARCHAR(50) NOT NULL,
+            notes TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `;
+    await promiseDB.query(createRequestsTableQuery);
+
+    // D. Auto-insert default personnel accounts if empty
     const [existingPersonnel] = await promiseDB.query('SELECT COUNT(*) AS count FROM personnel');
     if (existingPersonnel[0].count === 0) {
         const insertDefaultPersonnel = `
@@ -318,6 +331,59 @@ async function handleEnrollment(req, res) {
 
 app.post('/api/enroll', handleEnrollment);
 app.post('/enroll', handleEnrollment);
+
+// ==========================================
+// 5.1 CORRECTION REQUESTS (IDINAGDAG)
+// ==========================================
+
+app.post('/api/requests', async (req, res) => {
+    const { reference_number, lrn, notes } = req.body || {};
+
+    try {
+        const [students] = await promiseDB.query(
+            'SELECT * FROM students WHERE reference_number = ? AND lrn = ?',
+            [reference_number, lrn]
+        );
+        if (students.length === 0) {
+            return res.status(404).json({ error: 'Reference Number or LRN does not match our records.' });
+        }
+
+        const student = students[0];
+        const sql = 'INSERT INTO correction_requests (student_id, reference_number, lrn, notes) VALUES (?, ?, ?, ?)';
+        await promiseDB.query(sql, [student.id, reference_number, lrn, notes]);
+
+        res.status(200).json({ success: true, message: 'Correction request submitted successfully.' });
+    } catch (err) {
+        console.error('SUBMIT REQUEST ERROR:', err.message);
+        res.status(500).json({ error: 'Database request failed.' });
+    }
+});
+
+app.get('/api/requests', async (req, res) => {
+    try {
+        const sql = `
+            SELECT r.*, s.full_name AS student_name 
+            FROM correction_requests r 
+            JOIN students s ON r.student_id = s.id 
+            ORDER BY r.created_at DESC
+        `;
+        const [rows] = await promiseDB.query(sql);
+        res.status(200).json(rows);
+    } catch (err) {
+        console.error('FETCH REQUESTS ERROR:', err.message);
+        res.status(500).json({ error: 'Failed to fetch correction requests.' });
+    }
+});
+
+app.delete('/api/requests/:id', async (req, res) => {
+    try {
+        await promiseDB.query('DELETE FROM correction_requests WHERE id = ?', [req.params.id]);
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('DELETE REQUEST ERROR:', err.message);
+        res.status(500).json({ error: 'Failed to delete request.' });
+    }
+});
 
 // ==========================================
 // 6. REGISTRAR LOGIN

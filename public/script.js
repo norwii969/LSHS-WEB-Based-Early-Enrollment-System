@@ -1,10 +1,10 @@
 let globalStudentsData = [];
+let globalRequestsData = [];
 
 document.addEventListener('DOMContentLoaded', () => {
   fetch('/api/students').catch(() => {});
   updateElectives();
 
-  // Enforce 12-digit numeric constraint on LRN input
   const lrnInput = document.getElementById('lrn');
   if (lrnInput) {
     lrnInput.addEventListener('input', (e) => {
@@ -12,10 +12,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Account Settings Button Listener
   const btnChangeCredentials = document.getElementById('btnChangeCredentials');
   if (btnChangeCredentials) {
     btnChangeCredentials.addEventListener('click', openChangeCredentialsModal);
+  }
+
+  // Student Request Edit Modal Listener
+  const btnStudentRequestEdit = document.getElementById('btnStudentRequestEdit');
+  if (btnStudentRequestEdit) {
+    btnStudentRequestEdit.addEventListener('click', openStudentCorrectionRequestModal);
   }
 });
 
@@ -150,6 +155,60 @@ document.getElementById('enrollmentForm').addEventListener('submit', async funct
   }
 });
 
+// STUDENT CORRECTION REQUEST MODAL
+function openStudentCorrectionRequestModal(e) {
+  if (e) e.preventDefault();
+
+  Swal.fire({
+    title: 'Request Record Correction',
+    html: `
+      <p style="font-size: 0.85rem; color: #555; margin-bottom: 12px;">
+        Nagkamali sa na-input na LRN, pangalan, o address? Ipa-edit ito sa Registrar:
+      </p>
+      <input type="text" id="reqRef" class="swal2-input" placeholder="Reference No. (e.g., LSHS-2026-XXXX)">
+      <input type="text" id="reqLrn" class="swal2-input" placeholder="12-digit LRN" maxlength="12">
+      <textarea id="reqNotes" class="swal2-textarea" placeholder="Isulat ang gustong ipa-edit (e.g., Mali po ang barangay ko, dapat Brgy. Illustre)" style="height: 90px;"></textarea>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Submit Request',
+    confirmButtonColor: '#800000',
+    preConfirm: () => {
+      const reference_number = document.getElementById('reqRef').value.trim();
+      const lrn = document.getElementById('reqLrn').value.trim();
+      const notes = document.getElementById('reqNotes').value.trim();
+
+      if (!reference_number || !lrn || !notes) {
+        Swal.showValidationMessage('Pakisagutan ang lahat ng fields!');
+      }
+      return { reference_number, lrn, notes };
+    }
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      try {
+        const res = await fetch('/api/requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(result.value)
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Request Sent!',
+            text: 'Naipasa na ang iyong correction request sa Registrar Dashboard.',
+            confirmButtonColor: '#800000'
+          });
+        } else {
+          Swal.fire('Failed', data.error || 'Hindi mahanap ang reference number o LRN.', 'error');
+        }
+      } catch (err) {
+        Swal.fire('Error', 'Server connection error.', 'error');
+      }
+    }
+  });
+}
+
 // Personnel Login Logic
 document.getElementById('btnPersonnelLogin').addEventListener('click', function(e) {
   e.preventDefault();
@@ -194,6 +253,7 @@ document.getElementById('btnPersonnelLogin').addEventListener('click', function(
 
           switchToPersonnelMode();
           loadEnrolledStudents();
+          loadCorrectionRequests();
         } else {
           Swal.fire({
             icon: 'error',
@@ -244,24 +304,40 @@ async function loadEnrolledStudents() {
     const students = await response.json();
     globalStudentsData = students || [];
 
-    updateSummaryCards(globalStudentsData);
+    updateSummaryCards(globalStudentsData, globalRequestsData);
     renderTableRows(globalStudentsData);
   } catch (err) {
     console.error('Failed to fetch students:', err);
   }
 }
 
-function updateSummaryCards(students) {
+async function loadCorrectionRequests() {
+  try {
+    const response = await fetch('/api/requests');
+    const requests = await response.json();
+    globalRequestsData = requests || [];
+
+    updateSummaryCards(globalStudentsData, globalRequestsData);
+    renderRequestsTable(globalRequestsData);
+  } catch (err) {
+    console.error('Failed to fetch requests:', err);
+  }
+}
+
+function updateSummaryCards(students, requests = []) {
   const total = students.length;
   const acad = students.filter(s => s.track === 'Academic Track').length;
   const tvl = students.filter(s => s.track === 'TVL Track').length;
+  const pendingRequests = requests.length;
 
   document.getElementById('statTotalEnrollees').textContent = total;
   document.getElementById('statAcademicCount').textContent = acad;
   document.getElementById('statTvlCount').textContent = tvl;
+  if (document.getElementById('statRequestsCount')) {
+    document.getElementById('statRequestsCount').textContent = pendingRequests;
+  }
 }
 
-// Render Table Rows with EDIT & DELETE Action Buttons
 function renderTableRows(students) {
   const tbody = document.getElementById('studentsTableBody');
   if (!tbody) return;
@@ -303,6 +379,47 @@ function renderTableRows(students) {
     `;
     tbody.appendChild(tr);
   });
+}
+
+function renderRequestsTable(requests) {
+  const tbody = document.getElementById('requestsTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!requests || requests.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #777;">No pending student correction requests.</td></tr>`;
+    return;
+  }
+
+  requests.forEach(req => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="padding: 12px 16px; font-weight: 700; color: #800000;">${req.reference_number}</td>
+      <td style="padding: 12px 16px;">${req.lrn}</td>
+      <td style="padding: 12px 16px;"><strong>${req.student_name || 'N/A'}</strong></td>
+      <td style="padding: 12px 16px; color: #d9534f; font-weight: 600;">${req.notes}</td>
+      <td style="padding: 12px 16px;">${new Date(req.created_at).toLocaleDateString()}</td>
+      <td style="padding: 12px 16px; text-align: center;">
+        <button 
+          onclick="resolveAndEditRequest(${req.id}, ${req.student_id})" 
+          style="background: #28a745; color: #ffffff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">
+          Review & Edit
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function resolveAndEditRequest(requestId, studentId) {
+  await editStudent(studentId);
+
+  try {
+    await fetch(`/api/requests/${requestId}`, { method: 'DELETE' });
+    loadCorrectionRequests();
+  } catch (err) {
+    console.error('Failed to resolve request', err);
+  }
 }
 
 // EDIT STUDENT RECORD MODAL LOGIC
@@ -441,11 +558,11 @@ function filterDashboardData() {
   renderTableRows(filtered);
 }
 
-document.getElementById('dashboardSearch').addEventListener('input', filterDashboardData);
-document.getElementById('dashboardFilterTrack').addEventListener('change', filterDashboardData);
+document.getElementById('dashboardSearch')?.addEventListener('input', filterDashboardData);
+document.getElementById('dashboardFilterTrack')?.addEventListener('change', filterDashboardData);
 
 // Export CSV / Excel Functionality
-document.getElementById('btnExportCSV').addEventListener('click', () => {
+document.getElementById('btnExportCSV')?.addEventListener('click', () => {
   if (!globalStudentsData || globalStudentsData.length === 0) {
     Swal.fire({
       icon: 'info',
