@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lemery Senior High School Early Enrollment System</title>
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
   <!-- SweetAlert2 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
@@ -29,7 +29,7 @@
     </div>
   </nav>
 
-  <!-- Public Student View Wrapper (Itatago pag nag-login ang Personnel) -->
+  <!-- Public Student View Wrapper -->
   <div id="studentPublicView">
     <!-- Hero Section -->
     <section class="hero-section">
@@ -159,7 +159,7 @@
     </section>
   </div>
 
-  <!-- Dedicated Admin Dashboard Section (Enhanced with Stats, Controls & Export) -->
+  <!-- Dedicated Admin Dashboard Section -->
   <section id="adminDashboardSection" class="admin-dashboard" style="display: none !important;">
     <div class="admin-card">
       <div class="admin-header">
@@ -168,10 +168,15 @@
           <h2>Registrar Personnel Dashboard</h2>
           <p>Overview of registered Grade 11 student applications</p>
         </div>
-        <button id="btnLogout" class="btn-logout">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-          Logout Dashboard
-        </button>
+        <div style="display: flex; gap: 10px;">
+          <button id="btnChangeCredentials" class="btn-secondary" style="display: inline-flex; align-items: center; cursor: pointer;">
+            ⚙️ Account Settings
+          </button>
+          <button id="btnLogout" class="btn-logout">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            Logout Dashboard
+          </button>
+        </div>
       </div>
 
       <!-- Dashboard Summary Stats Cards -->
@@ -231,6 +236,6 @@
   </section>
 
   <!-- Linked External JavaScript File -->
-  <script src="script.js?v=2"></script>
+  <script src="script.js?v=3"></script>
 </body>
 </html>

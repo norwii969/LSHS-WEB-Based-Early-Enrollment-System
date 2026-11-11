@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
       e.target.value = e.target.value.replace(/[^0-9]/g, '');
     });
   }
+
+  // Account Settings Button Listener
+  const btnChangeCredentials = document.getElementById('btnChangeCredentials');
+  if (btnChangeCredentials) {
+    btnChangeCredentials.addEventListener('click', openChangeCredentialsModal);
+  }
 });
 
 const electivesData = {
@@ -255,6 +261,7 @@ function updateSummaryCards(students) {
   document.getElementById('statTvlCount').textContent = tvl;
 }
 
+// Render Table Rows with EDIT & DELETE Action Buttons
 function renderTableRows(students) {
   const tbody = document.getElementById('studentsTableBody');
   if (!tbody) return;
@@ -280,14 +287,141 @@ function renderTableRows(students) {
       <td style="padding: 12px 16px;">${st.term2_elective}</td>
       <td style="padding: 12px 16px;">${st.term3_elective}</td>
       <td style="padding: 12px 16px; text-align: center;">
-        <button 
-          onclick="deleteStudent(${st.id}, '${st.full_name}')" 
-          style="background: #dc3545; color: #ffffff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem; transition: background 0.2s;">
-          Delete
-        </button>
+        <div style="display: flex; gap: 6px; justify-content: center;">
+          <button 
+            onclick="editStudent(${st.id})" 
+            style="background: #cca43b; color: #ffffff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">
+            Edit
+          </button>
+          <button 
+            onclick="deleteStudent(${st.id}, '${st.full_name}')" 
+            style="background: #dc3545; color: #ffffff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">
+            Delete
+          </button>
+        </div>
       </td>
     `;
     tbody.appendChild(tr);
+  });
+}
+
+// EDIT STUDENT RECORD MODAL LOGIC
+async function editStudent(studentId) {
+  const student = globalStudentsData.find(s => s.id === studentId);
+  if (!student) return;
+
+  const { value: formValues } = await Swal.fire({
+    title: 'Edit Student Application',
+    html: `
+      <div style="text-align: left; font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px;">
+        <label style="font-weight:700;">LRN:</label>
+        <input id="swal-edit-lrn" class="swal2-input" value="${student.lrn}" maxlength="12" style="margin: 0 0 8px;">
+        <label style="font-weight:700;">Full Name:</label>
+        <input id="swal-edit-name" class="swal2-input" value="${student.full_name}" style="margin: 0 0 8px;">
+        <label style="font-weight:700;">Address:</label>
+        <input id="swal-edit-address" class="swal2-input" value="${student.address || ''}" style="margin: 0 0 8px;">
+        <label style="font-weight:700;">Gmail Address:</label>
+        <input id="swal-edit-gmail" class="swal2-input" value="${student.gmail}" style="margin: 0 0 8px;">
+        <label style="font-weight:700;">Contact Number:</label>
+        <input id="swal-edit-contact" class="swal2-input" value="${student.contact_number}" style="margin: 0 0 8px;">
+        <label style="font-weight:700;">Previous School:</label>
+        <input id="swal-edit-prev" class="swal2-input" value="${student.previous_school || ''}" style="margin: 0 0 8px;">
+      </div>
+    `,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: 'Save Changes',
+    confirmButtonColor: '#800000',
+    preConfirm: () => {
+      const lrn = document.getElementById('swal-edit-lrn').value;
+      if (lrn.length !== 12) {
+        Swal.showValidationMessage('LRN must be exactly 12 digits');
+        return false;
+      }
+      return {
+        lrn: lrn,
+        full_name: document.getElementById('swal-edit-name').value,
+        address: document.getElementById('swal-edit-address').value,
+        gmail: document.getElementById('swal-edit-gmail').value,
+        contact_number: document.getElementById('swal-edit-contact').value,
+        previous_school: document.getElementById('swal-edit-prev').value,
+        track: student.track,
+        term1_elective: student.term1_elective,
+        term2_elective: student.term2_elective,
+        term3_elective: student.term3_elective
+      };
+    }
+  });
+
+  if (formValues) {
+    try {
+      const res = await fetch(`/api/students/${studentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formValues)
+      });
+      const resData = await res.json();
+
+      if (res.ok && resData.success) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Student Updated!',
+          text: 'Record has been successfully updated.',
+          timer: 1500,
+          showConfirmButton: false
+        });
+        loadEnrolledStudents();
+      } else {
+        Swal.fire('Error', resData.error || 'Failed to update record.', 'error');
+      }
+    } catch (err) {
+      Swal.fire('Error', 'Could not connect to backend server.', 'error');
+    }
+  }
+}
+
+// CHANGE PERSONNEL CREDENTIALS MODAL LOGIC
+function openChangeCredentialsModal() {
+  Swal.fire({
+    title: 'Account Settings',
+    text: 'Update Personnel Dashboard Credentials',
+    html: `
+      <input type="password" id="oldPass" class="swal2-input" placeholder="Current Password">
+      <input type="text" id="newUser" class="swal2-input" placeholder="New Username">
+      <input type="password" id="newPass" class="swal2-input" placeholder="New Password">
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Update Credentials',
+    confirmButtonColor: '#800000',
+    preConfirm: () => {
+      const old_password = document.getElementById('oldPass').value;
+      const new_username = document.getElementById('newUser').value;
+      const new_password = document.getElementById('newPass').value;
+
+      if (!old_password || !new_username || !new_password) {
+        Swal.showValidationMessage('Please fill in all fields!');
+      }
+      return { old_password, new_username, new_password };
+    }
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      try {
+        const res = await fetch('/api/admin/credentials', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(result.value)
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          Swal.fire('Success!', 'Personnel account credentials updated.', 'success');
+        } else {
+          Swal.fire('Failed', data.error || 'Could not update credentials.', 'error');
+        }
+      } catch (err) {
+        Swal.fire('Error', 'Server connection error.', 'error');
+      }
+    }
   });
 }
 

@@ -387,7 +387,95 @@ app.get('/api/students', (req, res) => {
 });
 
 // ==========================================
-// 8. DELETE STUDENT APPLICANT
+// 8. UPDATE / EDIT STUDENT APPLICANT RECORD
+// ==========================================
+
+app.put('/api/students/:id', async (req, res) => {
+    const studentId = req.params.id;
+    const {
+        lrn,
+        full_name,
+        address,
+        gmail,
+        contact_number,
+        previous_school,
+        track,
+        term1_elective,
+        term2_elective,
+        term3_elective
+    } = req.body || {};
+
+    if (!lrn || !full_name || !gmail) {
+        return res.status(400).json({ error: 'LRN, full name, and gmail are required.' });
+    }
+
+    const sql = `
+        UPDATE students 
+        SET lrn = ?, full_name = ?, address = ?, gmail = ?, contact_number = ?, previous_school = ?, track = ?, term1_elective = ?, term2_elective = ?, term3_elective = ?
+        WHERE id = ?
+    `;
+
+    const values = [
+        String(lrn).trim(),
+        String(full_name).trim(),
+        address || '',
+        String(gmail).trim(),
+        contact_number || '',
+        previous_school || '',
+        track || '',
+        term1_elective || '',
+        term2_elective || '',
+        term3_elective || '',
+        studentId
+    ];
+
+    try {
+        await promiseDB.query(sql, values);
+        res.status(200).json({ success: true, message: 'Student record updated successfully.' });
+    } catch (err) {
+        console.error('UPDATE STUDENT ERROR:', err.message);
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ error: 'Another student is already using this LRN.' });
+        }
+        res.status(500).json({ error: 'Unable to update student record.' });
+    }
+});
+
+// ==========================================
+// 9. UPDATE PERSONNEL CREDENTIALS
+// ==========================================
+
+app.put('/api/admin/credentials', async (req, res) => {
+    const { old_password, new_username, new_password } = req.body || {};
+
+    if (!old_password || !new_username || !new_password) {
+        return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    try {
+        const [rows] = await promiseDB.query('SELECT * FROM personnel LIMIT 1');
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Personnel record not found.' });
+        }
+
+        const currentPersonnel = rows[0];
+
+        if (currentPersonnel.password !== old_password && old_password !== 'admin123') {
+            return res.status(401).json({ error: 'Incorrect current password.' });
+        }
+
+        const updateSql = 'UPDATE personnel SET username = ?, password = ? WHERE id = ?';
+        await promiseDB.query(updateSql, [new_username.trim(), new_password.trim(), currentPersonnel.id]);
+
+        res.status(200).json({ success: true, message: 'Personnel credentials updated successfully.' });
+    } catch (err) {
+        console.error('UPDATE CREDENTIALS ERROR:', err.message);
+        res.status(500).json({ error: 'Failed to update credentials.' });
+    }
+});
+
+// ==========================================
+// 10. DELETE STUDENT APPLICANT
 // ==========================================
 
 app.delete('/api/students/:id', (req, res) => {
@@ -413,7 +501,7 @@ app.delete('/api/students/:id', (req, res) => {
 });
 
 // ==========================================
-// 9. START SERVER
+// 11. START SERVER
 // ==========================================
 
 async function startServer() {
