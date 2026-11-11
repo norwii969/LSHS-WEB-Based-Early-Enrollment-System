@@ -155,7 +155,7 @@ document.getElementById('enrollmentForm').addEventListener('submit', async funct
   }
 });
 
-// STUDENT CORRECTION REQUEST MODAL
+// STUDENT CORRECTION REQUEST MODAL (ENGLISH VERSION)
 function openStudentCorrectionRequestModal(e) {
   if (e) e.preventDefault();
 
@@ -163,11 +163,11 @@ function openStudentCorrectionRequestModal(e) {
     title: 'Request Record Correction',
     html: `
       <p style="font-size: 0.85rem; color: #555; margin-bottom: 12px;">
-        Nagkamali sa na-input na LRN, pangalan, o address? Ipa-edit ito sa Registrar:
+        Entered incorrect details in your enrollment form? Request a correction from the Registrar:
       </p>
       <input type="text" id="reqRef" class="swal2-input" placeholder="Reference No. (e.g., LSHS-2026-XXXX)">
       <input type="text" id="reqLrn" class="swal2-input" placeholder="12-digit LRN" maxlength="12">
-      <textarea id="reqNotes" class="swal2-textarea" placeholder="Isulat ang gustong ipa-edit (e.g., Mali po ang barangay ko, dapat Brgy. Illustre)" style="height: 90px;"></textarea>
+      <textarea id="reqNotes" class="swal2-textarea" placeholder="Describe the changes needed (e.g., Incorrect LRN or Barangay address)" style="height: 90px;"></textarea>
     `,
     showCancelButton: true,
     confirmButtonText: 'Submit Request',
@@ -178,7 +178,7 @@ function openStudentCorrectionRequestModal(e) {
       const notes = document.getElementById('reqNotes').value.trim();
 
       if (!reference_number || !lrn || !notes) {
-        Swal.showValidationMessage('Pakisagutan ang lahat ng fields!');
+        Swal.showValidationMessage('Please fill out all required fields!');
       }
       return { reference_number, lrn, notes };
     }
@@ -196,11 +196,11 @@ function openStudentCorrectionRequestModal(e) {
           Swal.fire({
             icon: 'success',
             title: 'Request Sent!',
-            text: 'Naipasa na ang iyong correction request sa Registrar Dashboard.',
+            text: 'Your correction request has been submitted to the Registrar Dashboard.',
             confirmButtonColor: '#800000'
           });
         } else {
-          Swal.fire('Failed', data.error || 'Hindi mahanap ang reference number o LRN.', 'error');
+          Swal.fire('Failed', data.error || 'Reference Number or LRN not found.', 'error');
         }
       } catch (err) {
         Swal.fire('Error', 'Server connection error.', 'error');
