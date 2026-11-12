@@ -536,13 +536,26 @@ function renderTableRows(students) {
   tbody.innerHTML = '';
 
   if (!students || students.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 20px; color: #777;">No matching student submissions found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 20px; color: #777;">No matching student submissions found.</td></tr>`;
     return;
   }
 
   students.forEach(st => {
     const tr = document.createElement('tr');
     const trackBadgeClass = st.track === 'Academic Track' ? 'badge-track-acad' : 'badge-track-tvl';
+    const isApproved = st.status === 'Approved';
+
+    const statusBadge = isApproved
+      ? `<span style="background: #d4edda; color: #155724; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 0.78rem; white-space: nowrap;">✅ Approved</span>`
+      : `<span style="background: #fff3cd; color: #856404; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 0.78rem; white-space: nowrap;">⏳ Pending</span>`;
+
+    const approveButtonHtml = !isApproved
+      ? `<button 
+          onclick="approveStudent(${st.id}, '${st.full_name}')" 
+          style="background: #28a745; color: #ffffff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">
+          ✓ Approve
+        </button>`
+      : '';
 
     tr.innerHTML = `
       <td style="padding: 12px 16px; font-weight: 700; color: #800000;">${st.reference_number || 'N/A'}</td>
@@ -554,8 +567,10 @@ function renderTableRows(students) {
       <td style="padding: 12px 16px;">${st.term1_elective}</td>
       <td style="padding: 12px 16px;">${st.term2_elective}</td>
       <td style="padding: 12px 16px;">${st.term3_elective}</td>
+      <td style="padding: 12px 16px;">${statusBadge}</td>
       <td style="padding: 12px 16px; text-align: center;">
         <div style="display: flex; gap: 6px; justify-content: center;">
+          ${approveButtonHtml}
           <button 
             onclick="editStudent(${st.id})" 
             style="background: #cca43b; color: #ffffff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">
@@ -571,6 +586,55 @@ function renderTableRows(students) {
     `;
     tbody.appendChild(tr);
   });
+}
+
+// APPROVE STUDENT & SEND GMAIL NOTIFICATION
+async function approveStudent(studentId, studentName) {
+  const confirmResult = await Swal.fire({
+    title: 'Approve Student Enrollment?',
+    html: `Approve <strong>${studentName}</strong> and send an official acceptance email to their Gmail?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#28a745',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'Yes, Approve & Notify!'
+  });
+
+  if (!confirmResult.isConfirmed) return;
+
+  Swal.fire({
+    title: 'Approving & Sending Email...',
+    text: 'Please wait...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+
+  try {
+    const res = await fetch(`/api/students/${studentId}/approve`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': adminSessionToken || ''
+      }
+    });
+    const data = await res.json();
+    Swal.close();
+
+    if (res.ok && data.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Enrollment Approved!',
+        text: data.message || `${studentName} has been approved and notified via Gmail.`,
+        confirmButtonColor: '#800000'
+      });
+      loadEnrolledStudents();
+    } else {
+      Swal.fire('Approval Failed', data.error || 'Could not approve student.', 'error');
+    }
+  } catch (err) {
+    Swal.close();
+    Swal.fire('Error', 'Server connection error.', 'error');
+  }
 }
 
 function renderRequestsTable(requests) {
@@ -771,7 +835,7 @@ document.getElementById('btnExportCSV')?.addEventListener('click', () => {
     return;
   }
 
-  const headers = ["Ref. No.", "LRN", "Full Name", "Gmail", "Contact", "Address", "Previous School", "Track", "Term 1 Elective", "Term 2 Elective", "Term 3 Elective"];
+  const headers = ["Ref. No.", "LRN", "Full Name", "Gmail", "Contact", "Address", "Previous School", "Track", "Term 1 Elective", "Term 2 Elective", "Term 3 Elective", "Status"];
   const rows = globalStudentsData.map(st => [
     `"${st.reference_number || ''}"`,
     `"${st.lrn || ''}"`,
@@ -783,7 +847,8 @@ document.getElementById('btnExportCSV')?.addEventListener('click', () => {
     `"${st.track || ''}"`,
     `"${st.term1_elective || ''}"`,
     `"${st.term2_elective || ''}"`,
-    `"${st.term3_elective || ''}"`
+    `"${st.term3_elective || ''}"`,
+    `"${st.status || 'Pending'}"`
   ]);
 
   const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");

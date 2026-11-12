@@ -16,8 +16,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 const otpStore = new Map();
 
 // Security stores for Personnel Login (Rate Limiting + Active Sessions)
-const loginAttempts = new Map(); // ip/username -> { count, lockUntil }
-const activeAdminSessions = new Set(); // token
+const loginAttempts = new Map();
+const activeAdminSessions = new Set();
 
 // ==========================================
 // 1. DATABASE CONNECTION
@@ -59,6 +59,7 @@ async function initializeDatabase() {
             term2_elective VARCHAR(100),
             term3_elective VARCHAR(100),
             reference_number VARCHAR(100),
+            status VARCHAR(50) DEFAULT 'Pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     `;
@@ -77,6 +78,7 @@ async function initializeDatabase() {
         term2_elective: 'VARCHAR(100) NULL',
         term3_elective: 'VARCHAR(100) NULL',
         reference_number: 'VARCHAR(100) NULL',
+        status: "VARCHAR(50) DEFAULT 'Pending'",
         created_at: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
     };
 
@@ -272,9 +274,10 @@ async function handleEnrollment(req, res) {
                 term1_elective,
                 term2_elective,
                 term3_elective,
-                reference_number
+                reference_number,
+                status
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')
         `;
 
         const values = [
@@ -517,7 +520,7 @@ app.put('/api/student/self-update', async (req, res) => {
 });
 
 // ==========================================
-// 6. SECURE REGISTRAR LOGIN (NO BACKDOOR + BRUTE-FORCE LOCKOUT + TOKEN)
+// 6. SECURE REGISTRAR LOGIN
 // ==========================================
 
 function verifyAdminSession(req, res, next) {
@@ -540,7 +543,6 @@ app.post('/api/login', (req, res) => {
     const attemptKey = String(username).trim().toLowerCase();
     const currentAttempt = loginAttempts.get(attemptKey);
 
-    // Check if account is temporarily locked due to failed attempts
     if (currentAttempt && currentAttempt.lockUntil && Date.now() < currentAttempt.lockUntil) {
         const remainingMinutes = Math.ceil((currentAttempt.lockUntil - Date.now()) / 60000);
         return res.status(429).json({
@@ -569,11 +571,9 @@ app.post('/api/login', (req, res) => {
 
         const user = results[0];
 
-        // Strictly check database password ONLY (Backdoor removed!)
         if (password === user.password) {
-            loginAttempts.delete(attemptKey); // Reset failed counter on success
+            loginAttempts.delete(attemptKey);
 
-            // Generate cryptographic session token
             const sessionToken = crypto.randomBytes(24).toString('hex');
             activeAdminSessions.add(sessionToken);
 
@@ -583,10 +583,9 @@ app.post('/api/login', (req, res) => {
                 token: sessionToken
             });
         } else {
-            // Increment failed login attempts
             const count = (currentAttempt ? currentAttempt.count : 0) + 1;
             if (count >= 3) {
-                loginAttempts.set(attemptKey, { count, lockUntil: Date.now() + 5 * 60 * 1000 }); // 5-minute lock
+                loginAttempts.set(attemptKey, { count, lockUntil: Date.now() + 5 * 60 * 1000 });
                 return res.status(429).json({
                     error: 'Too many failed login attempts (3/3). Login locked for 5 minutes.'
                 });
@@ -627,7 +626,69 @@ app.get('/api/students', (req, res) => {
 });
 
 // ==========================================
-// 8. UPDATE / EDIT STUDENT APPLICANT RECORD (PROTECTED BY SESSION)
+// 7.1 APPROVE STUDENT & SEND GMAIL NOTIFICATION
+// ==========================================
+
+app.put('/api/students/:id/approve', verifyAdminSession, async (req, res) => {
+    const studentId = req.params.id;
+
+    try {
+        const [rows] = await promiseDB.query('SELECT * FROM students WHERE id = ?', [studentId]);
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Student record not found.' });
+        }
+
+        const student = rows[0];
+
+        // Update status to Approved in database
+        await promiseDB.query("UPDATE students SET status = 'Approved' WHERE id = ?", [studentId]);
+
+        // Send Official Acceptance Email via EmailJS
+        const emailData = {
+            service_id: EMAILJS_SERVICE_ID,
+            template_id: EMAILJS_TEMPLATE_ID,
+            user_id: EMAILJS_PUBLIC_KEY,
+            template_params: {
+                to_email: student.gmail,
+                full_name: student.full_name,
+                lrn: student.lrn,
+                reference_number: `${student.reference_number} — OFFICIALLY APPROVED & ACCEPTED`,
+                track: student.track || '',
+                term1_elective: student.term1_elective || '',
+                term2_elective: student.term2_elective || '',
+                term3_elective: student.term3_elective || ''
+            }
+        };
+
+        if (EMAILJS_PRIVATE_KEY) {
+            emailData.accessToken = EMAILJS_PRIVATE_KEY;
+        }
+
+        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(emailData)
+        });
+
+        if (!response.ok) {
+            return res.status(200).json({
+                success: true,
+                message: 'Student marked as Approved, but email notification could not be sent.'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: `${student.full_name} is now officially APPROVED and notified via Gmail!`
+        });
+    } catch (err) {
+        console.error('APPROVE STUDENT ERROR:', err.message);
+        res.status(500).json({ error: 'Failed to approve student application.' });
+    }
+});
+
+// ==========================================
+// 8. UPDATE / EDIT STUDENT APPLICANT RECORD
 // ==========================================
 
 app.put('/api/students/:id', verifyAdminSession, async (req, res) => {
@@ -682,7 +743,7 @@ app.put('/api/students/:id', verifyAdminSession, async (req, res) => {
 });
 
 // ==========================================
-// 9. UPDATE PERSONNEL CREDENTIALS (PROTECTED BY SESSION)
+// 9. UPDATE PERSONNEL CREDENTIALS
 // ==========================================
 
 app.put('/api/admin/credentials', verifyAdminSession, async (req, res) => {
@@ -719,7 +780,7 @@ app.put('/api/admin/credentials', verifyAdminSession, async (req, res) => {
 });
 
 // ==========================================
-// 10. DELETE STUDENT APPLICANT (PROTECTED BY SESSION)
+// 10. DELETE STUDENT APPLICANT
 // ==========================================
 
 app.delete('/api/students/:id', verifyAdminSession, (req, res) => {
