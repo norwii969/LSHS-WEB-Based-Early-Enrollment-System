@@ -18,13 +18,11 @@ document.addEventListener('DOMContentLoaded', () => {
     btnChangeCredentials.addEventListener('click', openChangeCredentialsModal);
   }
 
-  // Student Request Edit Modal Listener
   const btnStudentRequestEdit = document.getElementById('btnStudentRequestEdit');
   if (btnStudentRequestEdit) {
     btnStudentRequestEdit.addEventListener('click', openStudentCorrectionRequestModal);
   }
 
-  // Student Self-Edit with OTP Listener
   const btnStudentSelfEdit = document.getElementById('btnStudentSelfEdit');
   if (btnStudentSelfEdit) {
     btnStudentSelfEdit.addEventListener('click', openStudentSelfEditOTPFlow);
@@ -321,7 +319,7 @@ async function openStudentVerifiedEditModal(student, verifiedOtp) {
   }
 }
 
-// STUDENT CORRECTION REQUEST MODAL (ENGLISH VERSION)
+// STUDENT CORRECTION REQUEST MODAL
 function openStudentCorrectionRequestModal(e) {
   if (e) e.preventDefault();
 
@@ -376,28 +374,68 @@ function openStudentCorrectionRequestModal(e) {
 }
 
 // ==========================================
-// SECURE PERSONNEL LOGIN LOGIC
+// SECURE PERSONNEL LOGIN LOGIC (WITH VISUAL SECURITY UI)
 // ==========================================
 document.getElementById('btnPersonnelLogin').addEventListener('click', function(e) {
   e.preventDefault();
 
+  const num1 = Math.floor(Math.random() * 9) + 1;
+  const num2 = Math.floor(Math.random() * 9) + 1;
+  const expectedSum = num1 + num2;
+
   Swal.fire({
-    title: 'Personnel Login',
+    title: '🔒 Personnel Login',
     html: `
-      <input type="text" id="adminUser" class="swal2-input" placeholder="Username">
-      <input type="password" id="adminPass" class="swal2-input" placeholder="Password">
+      <p style="font-size: 0.82rem; color: #666; margin-bottom: 12px;">
+        Authorized Registrar & Admin Access Only
+      </p>
+      <input type="text" id="adminUser" class="swal2-input" placeholder="Username" style="margin-bottom: 10px;">
+      
+      <div style="position: relative; width: 80%; margin: 0 auto 10px;">
+        <input type="password" id="adminPass" class="swal2-input" placeholder="Password" style="width: 100%; margin: 0; padding-right: 40px;">
+        <span id="toggleAdminPass" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1rem; user-select: none;" title="Show/Hide Password">👁️</span>
+      </div>
+
+      <div style="background: #fdf0f0; border: 1px dashed #800000; border-radius: 6px; padding: 8px 12px; width: 80%; margin: 10px auto 6px; text-align: left;">
+        <label style="font-size: 0.8rem; font-weight: 700; color: #800000; display: block; margin-bottom: 4px;">
+          Security Verification: What is ${num1} + ${num2}?
+        </label>
+        <input type="number" id="adminCaptcha" class="swal2-input" placeholder="Enter answer" style="width: 100%; height: 36px; margin: 0; font-size: 0.9rem;">
+      </div>
+
+      <p style="font-size: 0.75rem; color: #8a6d0b; margin-top: 8px; margin-bottom: 0;">
+        ⚠️ Security Policy: Login locks for 5 mins after 3 failed attempts.
+      </p>
     `,
-    confirmButtonText: 'Sign In',
+    confirmButtonText: 'Verify & Sign In',
     confirmButtonColor: '#800000',
     showCancelButton: true,
     focusConfirm: false,
-    preConfirm: () => {
-      const username = Swal.getPopup().querySelector('#adminUser').value;
-      const password = Swal.getPopup().querySelector('#adminPass').value;
-      if (!username || !password) {
-        Swal.showValidationMessage(`Please enter your username and password`);
+    didOpen: () => {
+      const toggleBtn = document.getElementById('toggleAdminPass');
+      const passInput = document.getElementById('adminPass');
+      if (toggleBtn && passInput) {
+        toggleBtn.addEventListener('click', () => {
+          const isPass = passInput.type === 'password';
+          passInput.type = isPass ? 'text' : 'password';
+          toggleBtn.textContent = isPass ? '🙈' : '👁️';
+        });
       }
-      return { username: username, password: password };
+    },
+    preConfirm: () => {
+      const username = Swal.getPopup().querySelector('#adminUser').value.trim();
+      const password = Swal.getPopup().querySelector('#adminPass').value;
+      const captchaVal = parseInt(Swal.getPopup().querySelector('#adminCaptcha').value, 10);
+
+      if (!username || !password) {
+        Swal.showValidationMessage('Please enter your username and password.');
+        return false;
+      }
+      if (captchaVal !== expectedSum) {
+        Swal.showValidationMessage('Incorrect security verification answer!');
+        return false;
+      }
+      return { username, password };
     }
   }).then(async (result) => {
     if (result.isConfirmed) {
@@ -411,11 +449,11 @@ document.getElementById('btnPersonnelLogin').addEventListener('click', function(
         const data = await res.json();
 
         if (res.ok && data.success) {
-          adminSessionToken = data.token; // Store secure token
+          adminSessionToken = data.token;
 
           Swal.fire({
             icon: 'success',
-            title: 'Welcome Back!',
+            title: 'Access Granted!',
             text: 'Successfully logged in as Personnel.',
             timer: 1000,
             showConfirmButton: false
