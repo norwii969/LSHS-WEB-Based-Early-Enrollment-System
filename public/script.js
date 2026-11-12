@@ -374,14 +374,10 @@ function openStudentCorrectionRequestModal(e) {
 }
 
 // ==========================================
-// SECURE PERSONNEL LOGIN LOGIC (WITH VISUAL SECURITY UI)
+// SECURE PERSONNEL LOGIN LOGIC
 // ==========================================
 document.getElementById('btnPersonnelLogin').addEventListener('click', function(e) {
   e.preventDefault();
-
-  const num1 = Math.floor(Math.random() * 9) + 1;
-  const num2 = Math.floor(Math.random() * 9) + 1;
-  const expectedSum = num1 + num2;
 
   Swal.fire({
     title: '🔒 Personnel Login',
@@ -396,18 +392,11 @@ document.getElementById('btnPersonnelLogin').addEventListener('click', function(
         <span id="toggleAdminPass" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1rem; user-select: none;" title="Show/Hide Password">👁️</span>
       </div>
 
-      <div style="background: #fdf0f0; border: 1px dashed #800000; border-radius: 6px; padding: 8px 12px; width: 80%; margin: 10px auto 6px; text-align: left;">
-        <label style="font-size: 0.8rem; font-weight: 700; color: #800000; display: block; margin-bottom: 4px;">
-          Security Verification: What is ${num1} + ${num2}?
-        </label>
-        <input type="number" id="adminCaptcha" class="swal2-input" placeholder="Enter answer" style="width: 100%; height: 36px; margin: 0; font-size: 0.9rem;">
-      </div>
-
-      <p style="font-size: 0.75rem; color: #8a6d0b; margin-top: 8px; margin-bottom: 0;">
+      <p style="font-size: 0.75rem; color: #8a6d0b; margin-top: 10px; margin-bottom: 0;">
         ⚠️ Security Policy: Login locks for 5 mins after 3 failed attempts.
       </p>
     `,
-    confirmButtonText: 'Verify & Sign In',
+    confirmButtonText: 'Sign In',
     confirmButtonColor: '#800000',
     showCancelButton: true,
     focusConfirm: false,
@@ -425,14 +414,9 @@ document.getElementById('btnPersonnelLogin').addEventListener('click', function(
     preConfirm: () => {
       const username = Swal.getPopup().querySelector('#adminUser').value.trim();
       const password = Swal.getPopup().querySelector('#adminPass').value;
-      const captchaVal = parseInt(Swal.getPopup().querySelector('#adminCaptcha').value, 10);
 
       if (!username || !password) {
         Swal.showValidationMessage('Please enter your username and password.');
-        return false;
-      }
-      if (captchaVal !== expectedSum) {
-        Swal.showValidationMessage('Incorrect security verification answer!');
         return false;
       }
       return { username, password };
