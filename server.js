@@ -15,8 +15,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Temporary in-memory store for Student OTPs
 const otpStore = new Map();
 
-// Security stores for Personnel Login (Rate Limiting + Active Sessions)
+// Security stores for Personnel Login (Rate Limiting + 2FA OTP + Active Sessions)
 const loginAttempts = new Map();
+const personnelOtpStore = new Map(); // username -> { otp, expiresAt, userId, username }
 const activeAdminSessions = new Set();
 
 // ==========================================
@@ -520,7 +521,7 @@ app.put('/api/student/self-update', async (req, res) => {
 });
 
 // ==========================================
-// 6. SECURE REGISTRAR LOGIN
+// 6. SECURE REGISTRAR LOGIN WITH 2FA GMAIL OTP
 // ==========================================
 
 function verifyAdminSession(req, res, next) {
@@ -531,6 +532,7 @@ function verifyAdminSession(req, res, next) {
     next();
 }
 
+// Step 1: Verify Password & Send 2FA OTP to Personnel Email
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body || {};
 
@@ -555,7 +557,7 @@ app.post('/api/login', (req, res) => {
         WHERE username = ? OR email = ?
     `;
 
-    db.query(sql, [username.trim(), username.trim()], (err, results) => {
+    db.query(sql, [username.trim(), username.trim()], async (err, results) => {
         if (err) {
             console.error('LOGIN DATABASE ERROR:', err.message);
             return res.status(500).json({
@@ -574,14 +576,68 @@ app.post('/api/login', (req, res) => {
         if (password === user.password) {
             loginAttempts.delete(attemptKey);
 
-            const sessionToken = crypto.randomBytes(24).toString('hex');
-            activeAdminSessions.add(sessionToken);
+            // Generate 6-digit 2FA OTP for Personnel
+            const otp = String(crypto.randomInt(100000, 1000000));
+            const expiresAt = Date.now() + 10 * 60 * 1000;
 
-            return res.status(200).json({
-                success: true,
-                username: user.username,
-                token: sessionToken
+            personnelOtpStore.set(user.username.toLowerCase(), {
+                otp,
+                expiresAt,
+                userId: user.id,
+                username: user.username
             });
+
+            // Determine recipient email (uses personnel email in DB, or fallback env email)
+            const recipientEmail = user.email && user.email.includes('@') && !user.email.endsWith('@lshs.edu.ph')
+                ? user.email
+                : (process.env.ADMIN_OTP_EMAIL || user.email);
+
+            try {
+                const emailData = {
+                    service_id: EMAILJS_SERVICE_ID,
+                    template_id: EMAILJS_TEMPLATE_ID,
+                    user_id: EMAILJS_PUBLIC_KEY,
+                    template_params: {
+                        to_email: recipientEmail,
+                        full_name: user.full_name || user.username,
+                        lrn: 'PERSONNEL 2FA SECURITY',
+                        reference_number: `ADMIN LOGIN OTP: ${otp} (Valid for 10 mins)`,
+                        track: 'Registrar Dashboard Access',
+                        term1_elective: 'Two-Factor Authentication',
+                        term2_elective: 'Authorized Personnel Only',
+                        term3_elective: 'Do not share this PIN'
+                    }
+                };
+
+                if (EMAILJS_PRIVATE_KEY) {
+                    emailData.accessToken = EMAILJS_PRIVATE_KEY;
+                }
+
+                const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(emailData)
+                });
+
+                if (!response.ok) {
+                    throw new Error('EmailJS failed to send Personnel OTP.');
+                }
+
+                const parts = recipientEmail.split('@');
+                const maskedEmail = parts[0].slice(0, 2) + '***@' + parts[1];
+
+                return res.status(200).json({
+                    success: true,
+                    require_otp: true,
+                    username: user.username,
+                    masked_email: maskedEmail
+                });
+            } catch (mailErr) {
+                console.error('PERSONNEL OTP EMAIL ERROR:', mailErr.message);
+                return res.status(500).json({
+                    error: 'Failed to send 2FA OTP to your personnel email. Please check your registered email in Account Settings.'
+                });
+            }
         } else {
             const count = (currentAttempt ? currentAttempt.count : 0) + 1;
             if (count >= 3) {
@@ -596,6 +652,32 @@ app.post('/api/login', (req, res) => {
                 });
             }
         }
+    });
+});
+
+// Step 2: Verify Personnel 2FA OTP & Issue Session Token
+app.post('/api/login/verify-otp', (req, res) => {
+    const { username, otp } = req.body || {};
+    if (!username || !otp) {
+        return res.status(400).json({ error: 'Username and OTP are required.' });
+    }
+
+    const key = String(username).trim().toLowerCase();
+    const record = personnelOtpStore.get(key);
+
+    if (!record || record.otp !== String(otp).trim() || Date.now() > record.expiresAt) {
+        return res.status(401).json({ error: 'Invalid or expired 2FA OTP code.' });
+    }
+
+    personnelOtpStore.delete(key);
+
+    const sessionToken = crypto.randomBytes(24).toString('hex');
+    activeAdminSessions.add(sessionToken);
+
+    return res.status(200).json({
+        success: true,
+        username: record.username,
+        token: sessionToken
     });
 });
 
@@ -640,10 +722,8 @@ app.put('/api/students/:id/approve', verifyAdminSession, async (req, res) => {
 
         const student = rows[0];
 
-        // Update status to Approved in database
         await promiseDB.query("UPDATE students SET status = 'Approved' WHERE id = ?", [studentId]);
 
-        // Send Official Acceptance Email via EmailJS
         const emailData = {
             service_id: EMAILJS_SERVICE_ID,
             template_id: EMAILJS_TEMPLATE_ID,
@@ -743,11 +823,11 @@ app.put('/api/students/:id', verifyAdminSession, async (req, res) => {
 });
 
 // ==========================================
-// 9. UPDATE PERSONNEL CREDENTIALS
+// 9. UPDATE PERSONNEL CREDENTIALS (INCLUDING 2FA EMAIL)
 // ==========================================
 
 app.put('/api/admin/credentials', verifyAdminSession, async (req, res) => {
-    const { old_password, new_username, new_password } = req.body || {};
+    const { old_password, new_username, new_email, new_password } = req.body || {};
 
     if (!old_password || !new_username || !new_password) {
         return res.status(400).json({ error: 'All fields are required.' });
@@ -769,10 +849,12 @@ app.put('/api/admin/credentials', verifyAdminSession, async (req, res) => {
             return res.status(401).json({ error: 'Incorrect current password.' });
         }
 
-        const updateSql = 'UPDATE personnel SET username = ?, password = ? WHERE id = ?';
-        await promiseDB.query(updateSql, [new_username.trim(), new_password.trim(), currentPersonnel.id]);
+        const updatedEmail = new_email && new_email.includes('@') ? new_email.trim() : currentPersonnel.email;
 
-        res.status(200).json({ success: true, message: 'Personnel credentials updated successfully.' });
+        const updateSql = 'UPDATE personnel SET username = ?, email = ?, password = ? WHERE id = ?';
+        await promiseDB.query(updateSql, [new_username.trim(), updatedEmail, new_password.trim(), currentPersonnel.id]);
+
+        res.status(200).json({ success: true, message: 'Personnel credentials & 2FA email updated successfully.' });
     } catch (err) {
         console.error('UPDATE CREDENTIALS ERROR:', err.message);
         res.status(500).json({ error: 'Failed to update credentials.' });

@@ -374,7 +374,7 @@ function openStudentCorrectionRequestModal(e) {
 }
 
 // ==========================================
-// SECURE PERSONNEL LOGIN LOGIC
+// SECURE PERSONNEL LOGIN WITH 2FA GMAIL OTP
 // ==========================================
 document.getElementById('btnPersonnelLogin').addEventListener('click', function(e) {
   e.preventDefault();
@@ -383,7 +383,7 @@ document.getElementById('btnPersonnelLogin').addEventListener('click', function(
     title: '🔒 Personnel Login',
     html: `
       <p style="font-size: 0.82rem; color: #666; margin-bottom: 12px;">
-        Authorized Registrar & Admin Access Only
+        Authorized Registrar & Admin Access Only (2FA Protected)
       </p>
       <input type="text" id="adminUser" class="swal2-input" placeholder="Username" style="margin-bottom: 10px;">
       
@@ -396,7 +396,7 @@ document.getElementById('btnPersonnelLogin').addEventListener('click', function(
         ⚠️ Security Policy: Login locks for 5 mins after 3 failed attempts.
       </p>
     `,
-    confirmButtonText: 'Sign In',
+    confirmButtonText: 'Continue & Send OTP',
     confirmButtonColor: '#800000',
     showCancelButton: true,
     focusConfirm: false,
@@ -423,6 +423,13 @@ document.getElementById('btnPersonnelLogin').addEventListener('click', function(
     }
   }).then(async (result) => {
     if (result.isConfirmed) {
+      Swal.fire({
+        title: 'Verifying Credentials...',
+        text: 'Sending 2FA OTP to Personnel Gmail...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
       try {
         const res = await fetch('/api/login', {
           method: 'POST',
@@ -431,21 +438,64 @@ document.getElementById('btnPersonnelLogin').addEventListener('click', function(
         });
 
         const data = await res.json();
+        Swal.close();
 
-        if (res.ok && data.success) {
-          adminSessionToken = data.token;
-
-          Swal.fire({
-            icon: 'success',
-            title: 'Access Granted!',
-            text: 'Successfully logged in as Personnel.',
-            timer: 1000,
-            showConfirmButton: false
+        if (res.ok && data.success && data.require_otp) {
+          // Step 2: Prompt for 6-Digit Personnel 2FA OTP
+          const { value: adminOtp } = await Swal.fire({
+            title: '🛡️ 2FA Security Verification',
+            html: `
+              <p style="font-size: 0.85rem; color: #555; margin-bottom: 12px;">
+                A 6-digit Security OTP has been sent to <strong>${data.masked_email}</strong>.<br>
+                Enter the code below to unlock the Registrar Dashboard:
+              </p>
+              <input type="text" id="adminOtpInput" class="swal2-input" placeholder="6-Digit OTP" maxlength="6" style="text-align: center; letter-spacing: 6px; font-size: 1.3rem; font-weight: bold;">
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Verify & Enter Dashboard',
+            confirmButtonColor: '#800000',
+            preConfirm: () => {
+              const code = document.getElementById('adminOtpInput').value.trim();
+              if (code.length !== 6) {
+                Swal.showValidationMessage('Please enter the 6-digit 2FA OTP code!');
+                return false;
+              }
+              return code;
+            }
           });
 
-          switchToPersonnelMode();
-          loadEnrolledStudents();
-          loadCorrectionRequests();
+          if (!adminOtp) return;
+
+          const verifyRes = await fetch('/api/login/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: data.username, otp: adminOtp })
+          });
+
+          const verifyData = await verifyRes.json();
+
+          if (verifyRes.ok && verifyData.success) {
+            adminSessionToken = verifyData.token;
+
+            Swal.fire({
+              icon: 'success',
+              title: 'Access Granted!',
+              text: '2FA verified. Welcome to the Registrar Dashboard.',
+              timer: 1200,
+              showConfirmButton: false
+            });
+
+            switchToPersonnelMode();
+            loadEnrolledStudents();
+            loadCorrectionRequests();
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'Verification Failed',
+              text: verifyData.error || 'Invalid or expired 2FA OTP code.',
+              confirmButtonColor: '#800000'
+            });
+          }
         } else {
           Swal.fire({
             icon: 'error',
@@ -455,6 +505,7 @@ document.getElementById('btnPersonnelLogin').addEventListener('click', function(
           });
         }
       } catch (err) {
+        Swal.close();
         Swal.fire({ 
           icon: 'error', 
           title: 'Connection Error', 
@@ -756,14 +807,15 @@ async function editStudent(studentId) {
   }
 }
 
-// CHANGE PERSONNEL CREDENTIALS MODAL LOGIC
+// CHANGE PERSONNEL CREDENTIALS & 2FA EMAIL MODAL LOGIC
 function openChangeCredentialsModal() {
   Swal.fire({
     title: 'Account Settings',
-    text: 'Update Personnel Dashboard Credentials',
+    text: 'Update Personnel Credentials & 2FA OTP Email',
     html: `
       <input type="password" id="oldPass" class="swal2-input" placeholder="Current Password">
       <input type="text" id="newUser" class="swal2-input" placeholder="New Username">
+      <input type="email" id="newEmail" class="swal2-input" placeholder="2FA OTP Gmail Address">
       <input type="password" id="newPass" class="swal2-input" placeholder="New Password (min 6 chars)">
     `,
     showCancelButton: true,
@@ -772,12 +824,13 @@ function openChangeCredentialsModal() {
     preConfirm: () => {
       const old_password = document.getElementById('oldPass').value;
       const new_username = document.getElementById('newUser').value;
+      const new_email = document.getElementById('newEmail').value;
       const new_password = document.getElementById('newPass').value;
 
       if (!old_password || !new_username || !new_password) {
-        Swal.showValidationMessage('Please fill in all fields!');
+        Swal.showValidationMessage('Please fill in required fields!');
       }
-      return { old_password, new_username, new_password };
+      return { old_password, new_username, new_email, new_password };
     }
   }).then(async (result) => {
     if (result.isConfirmed) {
@@ -793,7 +846,7 @@ function openChangeCredentialsModal() {
         const data = await res.json();
 
         if (res.ok && data.success) {
-          Swal.fire('Success!', 'Personnel account credentials updated.', 'success');
+          Swal.fire('Success!', 'Personnel account credentials & 2FA email updated.', 'success');
         } else {
           Swal.fire('Failed', data.error || 'Could not update credentials.', 'error');
         }
