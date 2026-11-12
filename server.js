@@ -12,6 +12,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Temporary in-memory store for Student OTPs (refNumber -> { otp, expiresAt })
+const otpStore = new Map();
+
 // ==========================================
 // 1. DATABASE CONNECTION
 // ==========================================
@@ -101,7 +104,7 @@ async function initializeDatabase() {
 
     await promiseDB.query(createPersonnelTableQuery);
 
-    // C. Create Correction Requests Table (IDINAGDAG)
+    // C. Create Correction Requests Table
     const createRequestsTableQuery = `
         CREATE TABLE IF NOT EXISTS correction_requests (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -333,7 +336,7 @@ app.post('/api/enroll', handleEnrollment);
 app.post('/enroll', handleEnrollment);
 
 // ==========================================
-// 5.1 CORRECTION REQUESTS (IDINAGDAG)
+// 5.1 CORRECTION REQUESTS
 // ==========================================
 
 app.post('/api/requests', async (req, res) => {
@@ -382,6 +385,133 @@ app.delete('/api/requests/:id', async (req, res) => {
     } catch (err) {
         console.error('DELETE REQUEST ERROR:', err.message);
         res.status(500).json({ error: 'Failed to delete request.' });
+    }
+});
+
+// ==========================================
+// 5.2 STUDENT OTP SELF-EDIT VERIFICATION (IDINAGDAG)
+// ==========================================
+
+app.post('/api/student/send-otp', async (req, res) => {
+    const { reference_number } = req.body || {};
+    if (!reference_number) {
+        return res.status(400).json({ error: 'Reference Number is required.' });
+    }
+
+    try {
+        const [rows] = await promiseDB.query(
+            'SELECT * FROM students WHERE reference_number = ?',
+            [reference_number.trim()]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Reference Number not found in our records.' });
+        }
+
+        const student = rows[0];
+        const otp = String(crypto.randomInt(100000, 1000000));
+        const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes validity
+
+        otpStore.set(student.reference_number, { otp, expiresAt });
+
+        // Send OTP using existing EmailJS template
+        const emailData = {
+            service_id: EMAILJS_SERVICE_ID,
+            template_id: EMAILJS_TEMPLATE_ID,
+            user_id: EMAILJS_PUBLIC_KEY,
+            template_params: {
+                to_email: student.gmail,
+                full_name: student.full_name,
+                lrn: student.lrn,
+                reference_number: `SECURITY OTP CODE: ${otp} (Valid for 10 mins)`,
+                track: student.track || '',
+                term1_elective: student.term1_elective || '',
+                term2_elective: student.term2_elective || '',
+                term3_elective: student.term3_elective || ''
+            }
+        };
+
+        if (EMAILJS_PRIVATE_KEY) {
+            emailData.accessToken = EMAILJS_PRIVATE_KEY;
+        }
+
+        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(emailData)
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to deliver OTP email.');
+        }
+
+        // Mask email address for privacy (e.g., na***@gmail.com)
+        const parts = student.gmail.split('@');
+        const maskedEmail = parts[0].slice(0, 2) + '***@' + parts[1];
+
+        res.status(200).json({ success: true, masked_email: maskedEmail });
+    } catch (err) {
+        console.error('SEND OTP ERROR:', err.message);
+        res.status(500).json({ error: 'Failed to send OTP email. Please try again.' });
+    }
+});
+
+app.post('/api/student/verify-otp', async (req, res) => {
+    const { reference_number, otp } = req.body || {};
+    const record = otpStore.get(String(reference_number).trim());
+
+    if (!record || record.otp !== String(otp).trim() || Date.now() > record.expiresAt) {
+        return res.status(401).json({ error: 'Invalid or expired OTP code.' });
+    }
+
+    try {
+        const [rows] = await promiseDB.query(
+            'SELECT * FROM students WHERE reference_number = ?',
+            [String(reference_number).trim()]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Student record not found.' });
+        }
+
+        res.status(200).json({ success: true, student: rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: 'Database error during verification.' });
+    }
+});
+
+app.put('/api/student/self-update', async (req, res) => {
+    const { reference_number, otp, lrn, full_name, address, contact_number, previous_school } = req.body || {};
+    const record = otpStore.get(String(reference_number).trim());
+
+    if (!record || record.otp !== String(otp).trim() || Date.now() > record.expiresAt) {
+        return res.status(401).json({ error: 'Session expired. Please request a new OTP.' });
+    }
+
+    try {
+        const sql = `
+            UPDATE students 
+            SET lrn = ?, full_name = ?, address = ?, contact_number = ?, previous_school = ?
+            WHERE reference_number = ?
+        `;
+        await promiseDB.query(sql, [
+            String(lrn).trim(),
+            String(full_name).trim(),
+            address || '',
+            contact_number || '',
+            previous_school || '',
+            String(reference_number).trim()
+        ]);
+
+        // Clear OTP after successful update
+        otpStore.delete(String(reference_number).trim());
+
+        res.status(200).json({ success: true, message: 'Enrollment details updated.' });
+    } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ error: 'This LRN is already registered to another student.' });
+        }
+        res.status(500).json({ error: 'Failed to update enrollment record.' });
     }
 });
 

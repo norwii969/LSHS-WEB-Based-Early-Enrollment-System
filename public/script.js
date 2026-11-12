@@ -22,6 +22,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnStudentRequestEdit) {
     btnStudentRequestEdit.addEventListener('click', openStudentCorrectionRequestModal);
   }
+
+  // Student Self-Edit with OTP Listener
+  const btnStudentSelfEdit = document.getElementById('btnStudentSelfEdit');
+  if (btnStudentSelfEdit) {
+    btnStudentSelfEdit.addEventListener('click', openStudentSelfEditOTPFlow);
+  }
 });
 
 const electivesData = {
@@ -154,6 +160,168 @@ document.getElementById('enrollmentForm').addEventListener('submit', async funct
     });
   }
 });
+
+// ==========================================
+// STUDENT SELF-EDIT WITH GMAIL OTP VERIFICATION
+// ==========================================
+async function openStudentSelfEditOTPFlow(e) {
+  if (e) e.preventDefault();
+
+  // Step 1: Ask for Reference Number
+  const { value: refNumber } = await Swal.fire({
+    title: 'Edit My Enrollment Record',
+    html: `
+      <p style="font-size: 0.85rem; color: #555; margin-bottom: 12px;">
+        Enter your <strong>Reference Number</strong>. We will send a 6-digit One-Time PIN (OTP) to your registered Gmail address to verify your identity.
+      </p>
+      <input type="text" id="otpRefInput" class="swal2-input" placeholder="Reference No. (e.g., LSHS-2026-XXXX)">
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Send OTP Code',
+    confirmButtonColor: '#800000',
+    preConfirm: () => {
+      const val = document.getElementById('otpRefInput').value.trim();
+      if (!val) {
+        Swal.showValidationMessage('Please enter your Reference Number!');
+        return false;
+      }
+      return val;
+    }
+  });
+
+  if (!refNumber) return;
+
+  Swal.fire({
+    title: 'Sending OTP to Gmail...',
+    text: 'Please wait...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+
+  try {
+    const sendRes = await fetch('/api/student/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reference_number: refNumber })
+    });
+    const sendData = await sendRes.json();
+    Swal.close();
+
+    if (!sendRes.ok || !sendData.success) {
+      Swal.fire('Not Found', sendData.error || 'Reference Number not found.', 'error');
+      return;
+    }
+
+    // Step 2: Prompt for the 6-digit OTP
+    const { value: otpCode } = await Swal.fire({
+      title: 'Verify Your Identity',
+      html: `
+        <p style="font-size: 0.85rem; color: #555; margin-bottom: 12px;">
+          A 6-digit OTP has been sent to <strong>${sendData.masked_email}</strong>.<br>
+          Enter the code below (valid for 10 minutes):
+        </p>
+        <input type="text" id="otpCodeInput" class="swal2-input" placeholder="6-Digit OTP" maxlength="6" style="text-align: center; letter-spacing: 6px; font-size: 1.3rem; font-weight: bold;">
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Verify OTP',
+      confirmButtonColor: '#800000',
+      preConfirm: () => {
+        const code = document.getElementById('otpCodeInput').value.trim();
+        if (code.length !== 6) {
+          Swal.showValidationMessage('Please enter the 6-digit OTP code!');
+          return false;
+        }
+        return code;
+      }
+    });
+
+    if (!otpCode) return;
+
+    const verifyRes = await fetch('/api/student/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reference_number: refNumber, otp: otpCode })
+    });
+    const verifyData = await verifyRes.json();
+
+    if (!verifyRes.ok || !verifyData.success) {
+      Swal.fire('Verification Failed', verifyData.error || 'Invalid or expired OTP code.', 'error');
+      return;
+    }
+
+    // Step 3: Open Verified Student Self-Edit Form
+    openStudentVerifiedEditModal(verifyData.student, otpCode);
+
+  } catch (err) {
+    Swal.close();
+    Swal.fire('Error', 'Could not connect to the server.', 'error');
+  }
+}
+
+async function openStudentVerifiedEditModal(student, verifiedOtp) {
+  const { value: updatedValues } = await Swal.fire({
+    title: 'Update Your Information',
+    html: `
+      <div style="text-align: left; font-size: 0.85rem; display: flex; flex-direction: column; gap: 6px;">
+        <p style="font-size: 0.8rem; color: #28a745; font-weight: 700; margin: 0 0 6px;">✓ Identity Verified (${student.reference_number})</p>
+        <label style="font-weight:700;">LRN (12 Digits):</label>
+        <input id="self-edit-lrn" class="swal2-input" value="${student.lrn}" maxlength="12" style="margin: 0 0 6px;">
+        <label style="font-weight:700;">Full Name:</label>
+        <input id="self-edit-name" class="swal2-input" value="${student.full_name}" style="margin: 0 0 6px;">
+        <label style="font-weight:700;">Address:</label>
+        <input id="self-edit-address" class="swal2-input" value="${student.address || ''}" style="margin: 0 0 6px;">
+        <label style="font-weight:700;">Contact Number:</label>
+        <input id="self-edit-contact" class="swal2-input" value="${student.contact_number || ''}" style="margin: 0 0 6px;">
+        <label style="font-weight:700;">Previous School:</label>
+        <input id="self-edit-prev" class="swal2-input" value="${student.previous_school || ''}" style="margin: 0 0 6px;">
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Save Changes',
+    confirmButtonColor: '#800000',
+    preConfirm: () => {
+      const lrn = document.getElementById('self-edit-lrn').value.trim();
+      const full_name = document.getElementById('self-edit-name').value.trim();
+      if (lrn.length !== 12 || !full_name) {
+        Swal.showValidationMessage('Please provide a valid 12-digit LRN and Full Name.');
+        return false;
+      }
+      return {
+        reference_number: student.reference_number,
+        otp: verifiedOtp,
+        lrn,
+        full_name,
+        address: document.getElementById('self-edit-address').value.trim(),
+        contact_number: document.getElementById('self-edit-contact').value.trim(),
+        previous_school: document.getElementById('self-edit-prev').value.trim()
+      };
+    }
+  });
+
+  if (updatedValues) {
+    try {
+      const res = await fetch('/api/student/self-update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedValues)
+      });
+      const resData = await res.json();
+
+      if (res.ok && resData.success) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Record Updated!',
+          text: 'Your enrollment information has been successfully updated.',
+          confirmButtonColor: '#800000'
+        });
+      } else {
+        Swal.fire('Update Failed', resData.error || 'Could not update your record.', 'error');
+      }
+    } catch (err) {
+      Swal.fire('Error', 'Server connection error.', 'error');
+    }
+  }
+}
 
 // STUDENT CORRECTION REQUEST MODAL (ENGLISH VERSION)
 function openStudentCorrectionRequestModal(e) {
@@ -422,7 +590,7 @@ async function resolveAndEditRequest(requestId, studentId) {
   }
 }
 
-// EDIT STUDENT RECORD MODAL LOGIC
+// EDIT STUDENT RECORD MODAL LOGIC (PERSONNEL)
 async function editStudent(studentId) {
   const student = globalStudentsData.find(s => s.id === studentId);
   if (!student) return;
