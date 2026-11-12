@@ -73,7 +73,7 @@ async function initializeDatabase() {
         address: 'TEXT NULL',
         gmail: 'VARCHAR(255) NULL',
         contact_number: 'VARCHAR(50) NULL',
-        previous_school: 'VARCHAR(255) NULL',
+        previous_school: 'VARCHAR(50) NULL',
         track: 'VARCHAR(100) NULL',
         term1_elective: 'VARCHAR(100) NULL',
         term2_elective: 'VARCHAR(100) NULL',
