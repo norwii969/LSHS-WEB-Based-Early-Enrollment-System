@@ -12,8 +12,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Temporary in-memory store for Student OTPs (refNumber -> { otp, expiresAt })
+// Temporary in-memory store for Student OTPs
 const otpStore = new Map();
+
+// Security stores for Personnel Login (Rate Limiting + Active Sessions)
+const loginAttempts = new Map(); // ip/username -> { count, lockUntil }
+const activeAdminSessions = new Set(); // token
 
 // ==========================================
 // 1. DATABASE CONNECTION
@@ -389,7 +393,7 @@ app.delete('/api/requests/:id', async (req, res) => {
 });
 
 // ==========================================
-// 5.2 STUDENT OTP SELF-EDIT VERIFICATION (IDINAGDAG)
+// 5.2 STUDENT OTP SELF-EDIT VERIFICATION
 // ==========================================
 
 app.post('/api/student/send-otp', async (req, res) => {
@@ -410,11 +414,10 @@ app.post('/api/student/send-otp', async (req, res) => {
 
         const student = rows[0];
         const otp = String(crypto.randomInt(100000, 1000000));
-        const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes validity
+        const expiresAt = Date.now() + 10 * 60 * 1000;
 
         otpStore.set(student.reference_number, { otp, expiresAt });
 
-        // Send OTP using existing EmailJS template
         const emailData = {
             service_id: EMAILJS_SERVICE_ID,
             template_id: EMAILJS_TEMPLATE_ID,
@@ -445,7 +448,6 @@ app.post('/api/student/send-otp', async (req, res) => {
             throw new Error('Failed to deliver OTP email.');
         }
 
-        // Mask email address for privacy (e.g., na***@gmail.com)
         const parts = student.gmail.split('@');
         const maskedEmail = parts[0].slice(0, 2) + '***@' + parts[1];
 
@@ -503,7 +505,6 @@ app.put('/api/student/self-update', async (req, res) => {
             String(reference_number).trim()
         ]);
 
-        // Clear OTP after successful update
         otpStore.delete(String(reference_number).trim());
 
         res.status(200).json({ success: true, message: 'Enrollment details updated.' });
@@ -516,8 +517,16 @@ app.put('/api/student/self-update', async (req, res) => {
 });
 
 // ==========================================
-// 6. REGISTRAR LOGIN
+// 6. SECURE REGISTRAR LOGIN (NO BACKDOOR + BRUTE-FORCE LOCKOUT + TOKEN)
 // ==========================================
+
+function verifyAdminSession(req, res, next) {
+    const authHeader = req.headers['x-admin-token'];
+    if (!authHeader || !activeAdminSessions.has(authHeader)) {
+        return res.status(403).json({ error: 'Unauthorized: Valid Personnel session required.' });
+    }
+    next();
+}
 
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body || {};
@@ -528,12 +537,23 @@ app.post('/api/login', (req, res) => {
         });
     }
 
+    const attemptKey = String(username).trim().toLowerCase();
+    const currentAttempt = loginAttempts.get(attemptKey);
+
+    // Check if account is temporarily locked due to failed attempts
+    if (currentAttempt && currentAttempt.lockUntil && Date.now() < currentAttempt.lockUntil) {
+        const remainingMinutes = Math.ceil((currentAttempt.lockUntil - Date.now()) / 60000);
+        return res.status(429).json({
+            error: `Account temporarily locked due to multiple failed attempts. Try again in ${remainingMinutes} minute(s).`
+        });
+    }
+
     const sql = `
         SELECT * FROM personnel
         WHERE username = ? OR email = ?
     `;
 
-    db.query(sql, [username, username], (err, results) => {
+    db.query(sql, [username.trim(), username.trim()], (err, results) => {
         if (err) {
             console.error('LOGIN DATABASE ERROR:', err.message);
             return res.status(500).json({
@@ -543,23 +563,47 @@ app.post('/api/login', (req, res) => {
 
         if (results.length === 0) {
             return res.status(401).json({
-                error: 'User not found in personnel records.'
+                error: 'Invalid credentials.'
             });
         }
 
         const user = results[0];
 
-        if (password === user.password || password === 'admin123') {
+        // Strictly check database password ONLY (Backdoor removed!)
+        if (password === user.password) {
+            loginAttempts.delete(attemptKey); // Reset failed counter on success
+
+            // Generate cryptographic session token
+            const sessionToken = crypto.randomBytes(24).toString('hex');
+            activeAdminSessions.add(sessionToken);
+
             return res.status(200).json({
                 success: true,
-                username: user.username
+                username: user.username,
+                token: sessionToken
             });
         } else {
-            return res.status(401).json({
-                error: 'Incorrect password.'
-            });
+            // Increment failed login attempts
+            const count = (currentAttempt ? currentAttempt.count : 0) + 1;
+            if (count >= 3) {
+                loginAttempts.set(attemptKey, { count, lockUntil: Date.now() + 5 * 60 * 1000 }); // 5-minute lock
+                return res.status(429).json({
+                    error: 'Too many failed login attempts (3/3). Login locked for 5 minutes.'
+                });
+            } else {
+                loginAttempts.set(attemptKey, { count, lockUntil: null });
+                return res.status(401).json({
+                    error: `Incorrect password. (${3 - count} attempt(s) remaining before lockout)`
+                });
+            }
         }
     });
+});
+
+app.post('/api/logout', (req, res) => {
+    const token = req.headers['x-admin-token'];
+    if (token) activeAdminSessions.delete(token);
+    res.status(200).json({ success: true });
 });
 
 // ==========================================
@@ -583,10 +627,10 @@ app.get('/api/students', (req, res) => {
 });
 
 // ==========================================
-// 8. UPDATE / EDIT STUDENT APPLICANT RECORD
+// 8. UPDATE / EDIT STUDENT APPLICANT RECORD (PROTECTED BY SESSION)
 // ==========================================
 
-app.put('/api/students/:id', async (req, res) => {
+app.put('/api/students/:id', verifyAdminSession, async (req, res) => {
     const studentId = req.params.id;
     const {
         lrn,
@@ -638,14 +682,18 @@ app.put('/api/students/:id', async (req, res) => {
 });
 
 // ==========================================
-// 9. UPDATE PERSONNEL CREDENTIALS
+// 9. UPDATE PERSONNEL CREDENTIALS (PROTECTED BY SESSION)
 // ==========================================
 
-app.put('/api/admin/credentials', async (req, res) => {
+app.put('/api/admin/credentials', verifyAdminSession, async (req, res) => {
     const { old_password, new_username, new_password } = req.body || {};
 
     if (!old_password || !new_username || !new_password) {
         return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    if (new_password.trim().length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
     }
 
     try {
@@ -656,7 +704,7 @@ app.put('/api/admin/credentials', async (req, res) => {
 
         const currentPersonnel = rows[0];
 
-        if (currentPersonnel.password !== old_password && old_password !== 'admin123') {
+        if (currentPersonnel.password !== old_password) {
             return res.status(401).json({ error: 'Incorrect current password.' });
         }
 
@@ -671,10 +719,10 @@ app.put('/api/admin/credentials', async (req, res) => {
 });
 
 // ==========================================
-// 10. DELETE STUDENT APPLICANT
+// 10. DELETE STUDENT APPLICANT (PROTECTED BY SESSION)
 // ==========================================
 
-app.delete('/api/students/:id', (req, res) => {
+app.delete('/api/students/:id', verifyAdminSession, (req, res) => {
     const studentId = req.params.id;
 
     const sql = 'DELETE FROM students WHERE id = ?';

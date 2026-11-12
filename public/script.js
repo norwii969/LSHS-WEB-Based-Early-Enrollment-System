@@ -1,5 +1,6 @@
 let globalStudentsData = [];
 let globalRequestsData = [];
+let adminSessionToken = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   fetch('/api/students').catch(() => {});
@@ -167,7 +168,6 @@ document.getElementById('enrollmentForm').addEventListener('submit', async funct
 async function openStudentSelfEditOTPFlow(e) {
   if (e) e.preventDefault();
 
-  // Step 1: Ask for Reference Number
   const { value: refNumber } = await Swal.fire({
     title: 'Edit My Enrollment Record',
     html: `
@@ -212,7 +212,6 @@ async function openStudentSelfEditOTPFlow(e) {
       return;
     }
 
-    // Step 2: Prompt for the 6-digit OTP
     const { value: otpCode } = await Swal.fire({
       title: 'Verify Your Identity',
       html: `
@@ -249,7 +248,6 @@ async function openStudentSelfEditOTPFlow(e) {
       return;
     }
 
-    // Step 3: Open Verified Student Self-Edit Form
     openStudentVerifiedEditModal(verifyData.student, otpCode);
 
   } catch (err) {
@@ -377,7 +375,9 @@ function openStudentCorrectionRequestModal(e) {
   });
 }
 
-// Personnel Login Logic
+// ==========================================
+// SECURE PERSONNEL LOGIN LOGIC
+// ==========================================
 document.getElementById('btnPersonnelLogin').addEventListener('click', function(e) {
   e.preventDefault();
 
@@ -411,6 +411,8 @@ document.getElementById('btnPersonnelLogin').addEventListener('click', function(
         const data = await res.json();
 
         if (res.ok && data.success) {
+          adminSessionToken = data.token; // Store secure token
+
           Swal.fire({
             icon: 'success',
             title: 'Welcome Back!',
@@ -642,7 +644,10 @@ async function editStudent(studentId) {
     try {
       const res = await fetch(`/api/students/${studentId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': adminSessionToken || ''
+        },
         body: JSON.stringify(formValues)
       });
       const resData = await res.json();
@@ -673,7 +678,7 @@ function openChangeCredentialsModal() {
     html: `
       <input type="password" id="oldPass" class="swal2-input" placeholder="Current Password">
       <input type="text" id="newUser" class="swal2-input" placeholder="New Username">
-      <input type="password" id="newPass" class="swal2-input" placeholder="New Password">
+      <input type="password" id="newPass" class="swal2-input" placeholder="New Password (min 6 chars)">
     `,
     showCancelButton: true,
     confirmButtonText: 'Update Credentials',
@@ -693,7 +698,10 @@ function openChangeCredentialsModal() {
       try {
         const res = await fetch('/api/admin/credentials', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-token': adminSessionToken || ''
+          },
           body: JSON.stringify(result.value)
         });
         const data = await res.json();
@@ -782,7 +790,10 @@ async function deleteStudent(studentId, studentName) {
   try {
     const response = await fetch(`/api/students/${studentId}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': adminSessionToken || ''
+      }
     });
 
     const result = await response.json();
@@ -817,7 +828,15 @@ async function deleteStudent(studentId, studentName) {
 
 const btnLogout = document.getElementById('btnLogout');
 if (btnLogout) {
-  btnLogout.addEventListener('click', function() {
+  btnLogout.addEventListener('click', async function() {
+    if (adminSessionToken) {
+      await fetch('/api/logout', {
+        method: 'POST',
+        headers: { 'x-admin-token': adminSessionToken }
+      }).catch(() => {});
+      adminSessionToken = null;
+    }
+
     switchToStudentMode();
     Swal.fire({
       icon: 'info',
