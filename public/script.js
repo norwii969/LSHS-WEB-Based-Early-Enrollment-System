@@ -18,7 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnStudentSelfEdit')?.addEventListener('click', openStudentSelfEditOTPFlow);
 
   // Personnel Dashboard Action Buttons
-  document.getElementById('btnChangeCredentials')?.addEventListener('click', openChangeCredentialsModal);
   document.getElementById('btnCreateNewPersonnel')?.addEventListener('click', openCreateNewPersonnelModal);
   document.getElementById('btnRefreshData')?.addEventListener('click', () => {
     loadEnrolledStudents();
@@ -39,16 +38,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Export CSV / Excel Button
   document.getElementById('btnExportCSV')?.addEventListener('click', exportStudentsToCSV);
 
-  // Auto-inject "+ Add New Personnel" button beside Account Settings if not yet in HTML
+  // Hide Account Settings button and replace with "+ Add New Personnel"
   const credBtn = document.getElementById('btnChangeCredentials');
-  if (credBtn && !document.getElementById('btnCreateNewPersonnel')) {
-    const newStaffBtn = document.createElement('button');
-    newStaffBtn.id = 'btnCreateNewPersonnel';
-    newStaffBtn.type = 'button';
-    newStaffBtn.innerHTML = '➕ Add New Personnel';
-    newStaffBtn.style.cssText = 'background: #198754; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-left: 8px; font-size: 0.85rem;';
-    newStaffBtn.addEventListener('click', openCreateNewPersonnelModal);
-    credBtn.parentNode.insertBefore(newStaffBtn, credBtn.nextSibling);
+  if (credBtn) {
+    credBtn.style.display = 'none';
+    if (!document.getElementById('btnCreateNewPersonnel')) {
+      const newStaffBtn = document.createElement('button');
+      newStaffBtn.id = 'btnCreateNewPersonnel';
+      newStaffBtn.type = 'button';
+      newStaffBtn.innerHTML = '➕ Add New Personnel';
+      newStaffBtn.style.cssText = 'background: #198754; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-right: 8px; font-size: 0.85rem;';
+      newStaffBtn.addEventListener('click', openCreateNewPersonnelModal);
+      credBtn.parentNode.insertBefore(newStaffBtn, credBtn.nextSibling);
+    }
   }
 });
 
@@ -1115,45 +1117,6 @@ async function editStudent(id) {
       Swal.fire('Error', resData.error || 'Failed to update record.', 'error');
     }
   }
-}
-
-function openChangeCredentialsModal() {
-  Swal.fire({
-    title: 'Account Settings',
-    html: `
-      <input type="password" id="oldPass" class="swal2-input" placeholder="Current Password">
-      <input type="text" id="newUser" class="swal2-input" placeholder="New Username">
-      <input type="email" id="newEmail" class="swal2-input" placeholder="Recovery Gmail">
-      <input type="password" id="newPass" class="swal2-input" placeholder="New Password (min. 6 chars)">
-    `,
-    showCancelButton: true,
-    confirmButtonText: 'Update Credentials',
-    confirmButtonColor: '#800000',
-    preConfirm: () => ({
-      old_password: document.getElementById('oldPass').value,
-      new_username: document.getElementById('newUser').value,
-      new_email: document.getElementById('newEmail').value,
-      new_password: document.getElementById('newPass').value
-    })
-  }).then(async (result) => {
-    if (result.isConfirmed) {
-      const res = await fetch('/api/admin/credentials', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-token': adminSessionToken
-        },
-        body: JSON.stringify(result.value)
-      });
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        Swal.fire('Success!', 'Credentials updated successfully.', 'success');
-      } else {
-        Swal.fire('Failed', data.error || 'Could not update credentials.', 'error');
-      }
-    }
-  });
 }
 
 async function deleteStudent(id, name) {
