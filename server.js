@@ -12,13 +12,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Temporary in-memory store for Student OTPs
-const otpStore = new Map();
-
-// Security stores for Personnel Login (Rate Limiting + 2FA OTP + Active Sessions)
-const loginAttempts = new Map();
-const personnelOtpStore = new Map(); // username -> { otp, expiresAt, userId, username }
-const activeAdminSessions = new Set();
+// Temporary in-memory stores for OTPs & Security
+const otpStore = new Map();               // Student Self-Edit OTP
+const resetOtpStore = new Map();          // Personnel Password Reset OTP
+const newAccountOtpStore = new Map();     // New Personnel Account Gmail Verification OTP
+const loginAttempts = new Map();          // Personnel Brute-force Lockout
+const activeAdminSessions = new Set();    // Active Personnel Session Tokens
 
 // ==========================================
 // 1. DATABASE CONNECTION
@@ -73,7 +72,7 @@ async function initializeDatabase() {
         address: 'TEXT NULL',
         gmail: 'VARCHAR(255) NULL',
         contact_number: 'VARCHAR(50) NULL',
-        previous_school: 'VARCHAR(50) NULL',
+        previous_school: 'VARCHAR(255) NULL',
         track: 'VARCHAR(100) NULL',
         term1_elective: 'VARCHAR(100) NULL',
         term2_elective: 'VARCHAR(100) NULL',
@@ -141,7 +140,7 @@ async function initializeDatabase() {
 }
 
 // ==========================================
-// 3. EMAILJS CONFIGURATION
+// 3. EMAILJS CONFIGURATION & HELPER
 // ==========================================
 
 const EMAILJS_SERVICE_ID = process.env.EMAILJS_SERVICE_ID;
@@ -149,12 +148,8 @@ const EMAILJS_TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_ID;
 const EMAILJS_PUBLIC_KEY = process.env.EMAILJS_PUBLIC_KEY;
 const EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY;
 
-async function sendEnrollmentEmail(student, referenceNumber) {
-    if (
-        !EMAILJS_SERVICE_ID ||
-        !EMAILJS_TEMPLATE_ID ||
-        !EMAILJS_PUBLIC_KEY
-    ) {
+async function sendEmailViaEmailJS(templateParams) {
+    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
         throw new Error('EmailJS environment variables are incomplete.');
     }
 
@@ -162,44 +157,37 @@ async function sendEnrollmentEmail(student, referenceNumber) {
         service_id: EMAILJS_SERVICE_ID,
         template_id: EMAILJS_TEMPLATE_ID,
         user_id: EMAILJS_PUBLIC_KEY,
-
-        template_params: {
-            to_email: student.gmail,
-            full_name: student.full_name,
-            lrn: student.lrn,
-            reference_number: referenceNumber,
-            track: student.track || '',
-            term1_elective: student.term1_elective || '',
-            term2_elective: student.term2_elective || '',
-            term3_elective: student.term3_elective || ''
-        }
+        template_params: templateParams
     };
 
     if (EMAILJS_PRIVATE_KEY) {
         emailData.accessToken = EMAILJS_PRIVATE_KEY;
     }
 
-    const response = await fetch(
-        'https://api.emailjs.com/api/v1.0/email/send',
-        {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(emailData)
-        }
-    );
+    const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailData)
+    });
 
     const responseText = await response.text();
-
     if (!response.ok) {
-        throw new Error(
-            `EmailJS Error (${response.status}): ${responseText}`
-        );
+        throw new Error(`EmailJS Error (${response.status}): ${responseText}`);
     }
-
-    console.log('Enrollment confirmation email sent:', responseText);
     return true;
+}
+
+async function sendEnrollmentEmail(student, referenceNumber) {
+    return sendEmailViaEmailJS({
+        to_email: student.gmail,
+        full_name: student.full_name,
+        lrn: student.lrn,
+        reference_number: referenceNumber,
+        track: student.track || '',
+        term1_elective: student.term1_elective || '',
+        term2_elective: student.term2_elective || '',
+        term3_elective: student.term3_elective || ''
+    });
 }
 
 // ==========================================
@@ -217,25 +205,15 @@ app.get('/', (req, res) => {
 async function handleEnrollment(req, res) {
     try {
         const {
-            lrn,
-            full_name,
-            address,
-            gmail,
-            email,
-            contact_number,
-            previous_school,
-            track,
-            term1_elective,
-            term2_elective,
-            term3_elective
+            lrn, full_name, address, gmail, email,
+            contact_number, previous_school, track,
+            term1_elective, term2_elective, term3_elective
         } = req.body || {};
 
         const recipientEmail = gmail || email;
 
         if (
-            !lrn ||
-            !full_name ||
-            !recipientEmail ||
+            !lrn || !full_name || !recipientEmail ||
             typeof recipientEmail !== 'string' ||
             !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)
         ) {
@@ -258,40 +236,21 @@ async function handleEnrollment(req, res) {
         };
 
         const referenceNumber =
-            'LSHS-' +
-            new Date().getFullYear() +
-            '-' +
-            crypto.randomInt(1000, 10000);
+            'LSHS-' + new Date().getFullYear() + '-' + crypto.randomInt(1000, 10000);
 
         const sql = `
             INSERT INTO students (
-                lrn,
-                full_name,
-                address,
-                gmail,
-                contact_number,
-                previous_school,
-                track,
-                term1_elective,
-                term2_elective,
-                term3_elective,
-                reference_number,
-                status
+                lrn, full_name, address, gmail, contact_number,
+                previous_school, track, term1_elective, term2_elective,
+                term3_elective, reference_number, status
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')
         `;
 
         const values = [
-            student.lrn,
-            student.full_name,
-            student.address,
-            student.gmail,
-            student.contact_number,
-            student.previous_school,
-            student.track,
-            student.term1_elective,
-            student.term2_elective,
-            student.term3_elective,
+            student.lrn, student.full_name, student.address, student.gmail,
+            student.contact_number, student.previous_school, student.track,
+            student.term1_elective, student.term2_elective, student.term3_elective,
             referenceNumber
         ];
 
@@ -299,11 +258,7 @@ async function handleEnrollment(req, res) {
         console.log('ENROLLMENT SAVED:', referenceNumber);
 
         try {
-            await sendEnrollmentEmail(
-                student,
-                referenceNumber
-            );
-
+            await sendEnrollmentEmail(student, referenceNumber);
             return res.status(200).json({
                 success: true,
                 email_sent: true,
@@ -312,7 +267,6 @@ async function handleEnrollment(req, res) {
             });
         } catch (mailErr) {
             console.error('EMAIL NOTIFICATION ERROR:', mailErr.message);
-
             return res.status(200).json({
                 success: true,
                 email_sent: false,
@@ -321,22 +275,11 @@ async function handleEnrollment(req, res) {
             });
         }
     } catch (err) {
-        console.error('ENROLLMENT DATABASE ERROR:', {
-            code: err.code,
-            message: err.message,
-            sqlMessage: err.sqlMessage
-        });
-
+        console.error('ENROLLMENT DATABASE ERROR:', err.message);
         if (err.code === 'ER_DUP_ENTRY') {
-            return res.status(400).json({
-                error: 'This LRN is already registered in the system.'
-            });
+            return res.status(400).json({ error: 'This LRN is already registered in the system.' });
         }
-
-        return res.status(500).json({
-            error: 'Unable to save enrollment information.',
-            details: process.env.NODE_ENV === 'development' ? err.message : undefined
-        });
+        return res.status(500).json({ error: 'Unable to save enrollment information.' });
     }
 }
 
@@ -349,7 +292,6 @@ app.post('/enroll', handleEnrollment);
 
 app.post('/api/requests', async (req, res) => {
     const { reference_number, lrn, notes } = req.body || {};
-
     try {
         const [students] = await promiseDB.query(
             'SELECT * FROM students WHERE reference_number = ? AND lrn = ?',
@@ -360,12 +302,13 @@ app.post('/api/requests', async (req, res) => {
         }
 
         const student = students[0];
-        const sql = 'INSERT INTO correction_requests (student_id, reference_number, lrn, notes) VALUES (?, ?, ?, ?)';
-        await promiseDB.query(sql, [student.id, reference_number, lrn, notes]);
+        await promiseDB.query(
+            'INSERT INTO correction_requests (student_id, reference_number, lrn, notes) VALUES (?, ?, ?, ?)',
+            [student.id, reference_number, lrn, notes]
+        );
 
         res.status(200).json({ success: true, message: 'Correction request submitted successfully.' });
     } catch (err) {
-        console.error('SUBMIT REQUEST ERROR:', err.message);
         res.status(500).json({ error: 'Database request failed.' });
     }
 });
@@ -381,7 +324,6 @@ app.get('/api/requests', async (req, res) => {
         const [rows] = await promiseDB.query(sql);
         res.status(200).json(rows);
     } catch (err) {
-        console.error('FETCH REQUESTS ERROR:', err.message);
         res.status(500).json({ error: 'Failed to fetch correction requests.' });
     }
 });
@@ -391,7 +333,6 @@ app.delete('/api/requests/:id', async (req, res) => {
         await promiseDB.query('DELETE FROM correction_requests WHERE id = ?', [req.params.id]);
         res.status(200).json({ success: true });
     } catch (err) {
-        console.error('DELETE REQUEST ERROR:', err.message);
         res.status(500).json({ error: 'Failed to delete request.' });
     }
 });
@@ -402,9 +343,7 @@ app.delete('/api/requests/:id', async (req, res) => {
 
 app.post('/api/student/send-otp', async (req, res) => {
     const { reference_number } = req.body || {};
-    if (!reference_number) {
-        return res.status(400).json({ error: 'Reference Number is required.' });
-    }
+    if (!reference_number) return res.status(400).json({ error: 'Reference Number is required.' });
 
     try {
         const [rows] = await promiseDB.query(
@@ -422,42 +361,22 @@ app.post('/api/student/send-otp', async (req, res) => {
 
         otpStore.set(student.reference_number, { otp, expiresAt });
 
-        const emailData = {
-            service_id: EMAILJS_SERVICE_ID,
-            template_id: EMAILJS_TEMPLATE_ID,
-            user_id: EMAILJS_PUBLIC_KEY,
-            template_params: {
-                to_email: student.gmail,
-                full_name: student.full_name,
-                lrn: student.lrn,
-                reference_number: `SECURITY OTP CODE: ${otp} (Valid for 10 mins)`,
-                track: student.track || '',
-                term1_elective: student.term1_elective || '',
-                term2_elective: student.term2_elective || '',
-                term3_elective: student.term3_elective || ''
-            }
-        };
-
-        if (EMAILJS_PRIVATE_KEY) {
-            emailData.accessToken = EMAILJS_PRIVATE_KEY;
-        }
-
-        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(emailData)
+        await sendEmailViaEmailJS({
+            to_email: student.gmail,
+            full_name: student.full_name,
+            lrn: student.lrn,
+            reference_number: `SECURITY OTP CODE: ${otp} (Valid for 10 mins)`,
+            track: student.track || '',
+            term1_elective: student.term1_elective || '',
+            term2_elective: student.term2_elective || '',
+            term3_elective: student.term3_elective || ''
         });
-
-        if (!response.ok) {
-            throw new Error('Failed to deliver OTP email.');
-        }
 
         const parts = student.gmail.split('@');
         const maskedEmail = parts[0].slice(0, 2) + '***@' + parts[1];
 
         res.status(200).json({ success: true, masked_email: maskedEmail });
     } catch (err) {
-        console.error('SEND OTP ERROR:', err.message);
         res.status(500).json({ error: 'Failed to send OTP email. Please try again.' });
     }
 });
@@ -475,11 +394,7 @@ app.post('/api/student/verify-otp', async (req, res) => {
             'SELECT * FROM students WHERE reference_number = ?',
             [String(reference_number).trim()]
         );
-
-        if (rows.length === 0) {
-            return res.status(404).json({ error: 'Student record not found.' });
-        }
-
+        if (rows.length === 0) return res.status(404).json({ error: 'Student record not found.' });
         res.status(200).json({ success: true, student: rows[0] });
     } catch (err) {
         res.status(500).json({ error: 'Database error during verification.' });
@@ -510,7 +425,6 @@ app.put('/api/student/self-update', async (req, res) => {
         ]);
 
         otpStore.delete(String(reference_number).trim());
-
         res.status(200).json({ success: true, message: 'Enrollment details updated.' });
     } catch (err) {
         if (err.code === 'ER_DUP_ENTRY') {
@@ -521,7 +435,7 @@ app.put('/api/student/self-update', async (req, res) => {
 });
 
 // ==========================================
-// 6. SECURE REGISTRAR LOGIN WITH 2FA GMAIL OTP
+// 6. PERSONNEL DIRECT LOGIN (NO 2FA ON LOGIN)
 // ==========================================
 
 function verifyAdminSession(req, res, next) {
@@ -532,14 +446,11 @@ function verifyAdminSession(req, res, next) {
     next();
 }
 
-// Step 1: Verify Password & Send 2FA OTP to Personnel Email
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body || {};
 
     if (!username || !password) {
-        return res.status(400).json({
-            error: 'Username and password are required.'
-        });
+        return res.status(400).json({ error: 'Username and password are required.' });
     }
 
     const attemptKey = String(username).trim().toLowerCase();
@@ -552,92 +463,30 @@ app.post('/api/login', (req, res) => {
         });
     }
 
-    const sql = `
-        SELECT * FROM personnel
-        WHERE username = ? OR email = ?
-    `;
+    const sql = `SELECT * FROM personnel WHERE username = ? OR email = ?`;
 
-    db.query(sql, [username.trim(), username.trim()], async (err, results) => {
+    db.query(sql, [username.trim(), username.trim()], (err, results) => {
         if (err) {
-            console.error('LOGIN DATABASE ERROR:', err.message);
-            return res.status(500).json({
-                error: 'Login service temporarily unavailable.'
-            });
+            return res.status(500).json({ error: 'Login service temporarily unavailable.' });
         }
 
         if (results.length === 0) {
-            return res.status(401).json({
-                error: 'Invalid credentials.'
-            });
+            return res.status(401).json({ error: 'Invalid credentials.' });
         }
 
         const user = results[0];
 
         if (password === user.password) {
             loginAttempts.delete(attemptKey);
+            const sessionToken = crypto.randomBytes(24).toString('hex');
+            activeAdminSessions.add(sessionToken);
 
-            // Generate 6-digit 2FA OTP for Personnel
-            const otp = String(crypto.randomInt(100000, 1000000));
-            const expiresAt = Date.now() + 10 * 60 * 1000;
-
-            personnelOtpStore.set(user.username.toLowerCase(), {
-                otp,
-                expiresAt,
-                userId: user.id,
-                username: user.username
+            return res.status(200).json({
+                success: true,
+                username: user.username,
+                full_name: user.full_name,
+                token: sessionToken
             });
-
-            // Determine recipient email (uses personnel email in DB, or fallback env email)
-            const recipientEmail = user.email && user.email.includes('@') && !user.email.endsWith('@lshs.edu.ph')
-                ? user.email
-                : (process.env.ADMIN_OTP_EMAIL || user.email);
-
-            try {
-                const emailData = {
-                    service_id: EMAILJS_SERVICE_ID,
-                    template_id: EMAILJS_TEMPLATE_ID,
-                    user_id: EMAILJS_PUBLIC_KEY,
-                    template_params: {
-                        to_email: recipientEmail,
-                        full_name: user.full_name || user.username,
-                        lrn: 'PERSONNEL 2FA SECURITY',
-                        reference_number: `ADMIN LOGIN OTP: ${otp} (Valid for 10 mins)`,
-                        track: 'Registrar Dashboard Access',
-                        term1_elective: 'Two-Factor Authentication',
-                        term2_elective: 'Authorized Personnel Only',
-                        term3_elective: 'Do not share this PIN'
-                    }
-                };
-
-                if (EMAILJS_PRIVATE_KEY) {
-                    emailData.accessToken = EMAILJS_PRIVATE_KEY;
-                }
-
-                const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(emailData)
-                });
-
-                if (!response.ok) {
-                    throw new Error('EmailJS failed to send Personnel OTP.');
-                }
-
-                const parts = recipientEmail.split('@');
-                const maskedEmail = parts[0].slice(0, 2) + '***@' + parts[1];
-
-                return res.status(200).json({
-                    success: true,
-                    require_otp: true,
-                    username: user.username,
-                    masked_email: maskedEmail
-                });
-            } catch (mailErr) {
-                console.error('PERSONNEL OTP EMAIL ERROR:', mailErr.message);
-                return res.status(500).json({
-                    error: 'Failed to send 2FA OTP to your personnel email. Please check your registered email in Account Settings.'
-                });
-            }
         } else {
             const count = (currentAttempt ? currentAttempt.count : 0) + 1;
             if (count >= 3) {
@@ -655,32 +504,6 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// Step 2: Verify Personnel 2FA OTP & Issue Session Token
-app.post('/api/login/verify-otp', (req, res) => {
-    const { username, otp } = req.body || {};
-    if (!username || !otp) {
-        return res.status(400).json({ error: 'Username and OTP are required.' });
-    }
-
-    const key = String(username).trim().toLowerCase();
-    const record = personnelOtpStore.get(key);
-
-    if (!record || record.otp !== String(otp).trim() || Date.now() > record.expiresAt) {
-        return res.status(401).json({ error: 'Invalid or expired 2FA OTP code.' });
-    }
-
-    personnelOtpStore.delete(key);
-
-    const sessionToken = crypto.randomBytes(24).toString('hex');
-    activeAdminSessions.add(sessionToken);
-
-    return res.status(200).json({
-        success: true,
-        username: record.username,
-        token: sessionToken
-    });
-});
-
 app.post('/api/logout', (req, res) => {
     const token = req.headers['x-admin-token'];
     if (token) activeAdminSessions.delete(token);
@@ -688,23 +511,185 @@ app.post('/api/logout', (req, res) => {
 });
 
 // ==========================================
+// 6.1 PERSONNEL FORGOT / RESET PASSWORD VIA OTP
+// ==========================================
+
+app.post('/api/personnel/forgot-password/send-otp', async (req, res) => {
+    const { identifier } = req.body || {}; // username or email
+    if (!identifier) {
+        return res.status(400).json({ error: 'Please enter your Username or Gmail address.' });
+    }
+
+    try {
+        const [rows] = await promiseDB.query(
+            'SELECT * FROM personnel WHERE username = ? OR email = ?',
+            [identifier.trim(), identifier.trim()]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'No personnel account found with that username or email.' });
+        }
+
+        const user = rows[0];
+        const recipientEmail = (user.email && user.email.includes('@') && !user.email.endsWith('@lshs.edu.ph'))
+            ? user.email
+            : (process.env.ADMIN_OTP_EMAIL || user.email);
+
+        if (!recipientEmail || !recipientEmail.includes('@')) {
+            return res.status(400).json({ error: 'No valid recovery email configured for this account.' });
+        }
+
+        const otp = String(crypto.randomInt(100000, 1000000));
+        const expiresAt = Date.now() + 10 * 60 * 1000;
+
+        resetOtpStore.set(user.username.toLowerCase(), {
+            otp,
+            expiresAt,
+            userId: user.id
+        });
+
+        await sendEmailViaEmailJS({
+            to_email: recipientEmail,
+            full_name: user.full_name || user.username,
+            lrn: 'PASSWORD RESET SECURITY',
+            reference_number: `RESET PASSWORD OTP: ${otp} (Valid for 10 mins)`,
+            track: 'Personnel Account Recovery',
+            term1_elective: 'Password Reset Request',
+            term2_elective: 'Authorized Personnel Only',
+            term3_elective: 'Do not share this PIN'
+        });
+
+        const parts = recipientEmail.split('@');
+        const maskedEmail = parts[0].slice(0, 2) + '***@' + parts[1];
+
+        res.status(200).json({
+            success: true,
+            username: user.username,
+            masked_email: maskedEmail
+        });
+    } catch (err) {
+        console.error('RESET OTP ERROR:', err.message);
+        res.status(500).json({ error: 'Failed to send password reset OTP.' });
+    }
+});
+
+app.post('/api/personnel/forgot-password/reset', async (req, res) => {
+    const { username, otp, new_password } = req.body || {};
+    if (!username || !otp || !new_password) {
+        return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    if (new_password.trim().length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+    }
+
+    const key = String(username).trim().toLowerCase();
+    const record = resetOtpStore.get(key);
+
+    if (!record || record.otp !== String(otp).trim() || Date.now() > record.expiresAt) {
+        return res.status(401).json({ error: 'Invalid or expired OTP code.' });
+    }
+
+    try {
+        await promiseDB.query('UPDATE personnel SET password = ? WHERE id = ?', [new_password.trim(), record.userId]);
+        resetOtpStore.delete(key);
+        loginAttempts.delete(key);
+
+        res.status(200).json({ success: true, message: 'Password has been reset! You can now log in.' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update password in database.' });
+    }
+});
+
+// ==========================================
+// 6.2 CREATE NEW PERSONNEL ACCOUNT WITH GMAIL OTP
+// ==========================================
+
+app.post('/api/personnel/create/send-otp', verifyAdminSession, async (req, res) => {
+    const { full_name, username, email } = req.body || {};
+    if (!full_name || !username || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        return res.status(400).json({ error: 'Please provide a valid Full Name, Username, and Gmail address.' });
+    }
+
+    try {
+        // Check if username or email already exists
+        const [existing] = await promiseDB.query(
+            'SELECT * FROM personnel WHERE username = ? OR email = ?',
+            [username.trim(), email.trim()]
+        );
+
+        if (existing.length > 0) {
+            return res.status(400).json({ error: 'Username or Gmail address is already registered to another personnel.' });
+        }
+
+        const otp = String(crypto.randomInt(100000, 1000000));
+        const expiresAt = Date.now() + 10 * 60 * 1000;
+
+        newAccountOtpStore.set(email.trim().toLowerCase(), {
+            otp,
+            expiresAt
+        });
+
+        await sendEmailViaEmailJS({
+            to_email: email.trim(),
+            full_name: full_name.trim(),
+            lrn: 'NEW PERSONNEL VERIFICATION',
+            reference_number: `ACCOUNT VERIFICATION OTP: ${otp} (Valid for 10 mins)`,
+            track: 'LSHS Registrar Staff Onboarding',
+            term1_elective: 'Email Address Verification',
+            term2_elective: `Username: ${username.trim()}`,
+            term3_elective: 'Enter PIN to activate account'
+        });
+
+        res.status(200).json({ success: true, message: `Verification OTP sent to ${email.trim()}` });
+    } catch (err) {
+        console.error('NEW PERSONNEL OTP ERROR:', err.message);
+        res.status(500).json({ error: 'Failed to send verification OTP to that Gmail address.' });
+    }
+});
+
+app.post('/api/personnel/create/verify-and-save', verifyAdminSession, async (req, res) => {
+    const { full_name, username, email, password, otp } = req.body || {};
+    if (!full_name || !username || !email || !password || !otp) {
+        return res.status(400).json({ error: 'All fields including OTP are required.' });
+    }
+
+    if (password.trim().length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    const emailKey = email.trim().toLowerCase();
+    const record = newAccountOtpStore.get(emailKey);
+
+    if (!record || record.otp !== String(otp).trim() || Date.now() > record.expiresAt) {
+        return res.status(401).json({ error: 'Invalid or expired OTP code.' });
+    }
+
+    try {
+        await promiseDB.query(
+            'INSERT INTO personnel (username, email, password, full_name) VALUES (?, ?, ?, ?)',
+            [username.trim(), email.trim(), password.trim(), full_name.trim()]
+        );
+
+        newAccountOtpStore.delete(emailKey);
+        res.status(200).json({ success: true, message: `New personnel account (${username.trim()}) verified and created!` });
+    } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ error: 'Username or email is already taken.' });
+        }
+        res.status(500).json({ error: 'Failed to create personnel account.' });
+    }
+});
+
+// ==========================================
 // 7. FETCH APPLICANTS
 // ==========================================
 
 app.get('/api/students', (req, res) => {
-    db.query(
-        'SELECT * FROM students ORDER BY created_at DESC',
-        (err, results) => {
-            if (err) {
-                console.error('FETCH STUDENTS ERROR:', err.message);
-                return res.status(500).json({
-                    error: 'Unable to retrieve student records.'
-                });
-            }
-
-            res.status(200).json(results);
-        }
-    );
+    db.query('SELECT * FROM students ORDER BY created_at DESC', (err, results) => {
+        if (err) return res.status(500).json({ error: 'Unable to retrieve student records.' });
+        res.status(200).json(results);
+    });
 });
 
 // ==========================================
@@ -716,19 +701,13 @@ app.put('/api/students/:id/approve', verifyAdminSession, async (req, res) => {
 
     try {
         const [rows] = await promiseDB.query('SELECT * FROM students WHERE id = ?', [studentId]);
-        if (rows.length === 0) {
-            return res.status(404).json({ error: 'Student record not found.' });
-        }
+        if (rows.length === 0) return res.status(404).json({ error: 'Student record not found.' });
 
         const student = rows[0];
-
         await promiseDB.query("UPDATE students SET status = 'Approved' WHERE id = ?", [studentId]);
 
-        const emailData = {
-            service_id: EMAILJS_SERVICE_ID,
-            template_id: EMAILJS_TEMPLATE_ID,
-            user_id: EMAILJS_PUBLIC_KEY,
-            template_params: {
+        try {
+            await sendEmailViaEmailJS({
                 to_email: student.gmail,
                 full_name: student.full_name,
                 lrn: student.lrn,
@@ -737,32 +716,18 @@ app.put('/api/students/:id/approve', verifyAdminSession, async (req, res) => {
                 term1_elective: student.term1_elective || '',
                 term2_elective: student.term2_elective || '',
                 term3_elective: student.term3_elective || ''
-            }
-        };
-
-        if (EMAILJS_PRIVATE_KEY) {
-            emailData.accessToken = EMAILJS_PRIVATE_KEY;
-        }
-
-        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(emailData)
-        });
-
-        if (!response.ok) {
-            return res.status(200).json({
+            });
+            res.status(200).json({
+                success: true,
+                message: `${student.full_name} is now officially APPROVED and notified via Gmail!`
+            });
+        } catch (mailErr) {
+            res.status(200).json({
                 success: true,
                 message: 'Student marked as Approved, but email notification could not be sent.'
             });
         }
-
-        res.status(200).json({
-            success: true,
-            message: `${student.full_name} is now officially APPROVED and notified via Gmail!`
-        });
     } catch (err) {
-        console.error('APPROVE STUDENT ERROR:', err.message);
         res.status(500).json({ error: 'Failed to approve student application.' });
     }
 });
@@ -774,16 +739,8 @@ app.put('/api/students/:id/approve', verifyAdminSession, async (req, res) => {
 app.put('/api/students/:id', verifyAdminSession, async (req, res) => {
     const studentId = req.params.id;
     const {
-        lrn,
-        full_name,
-        address,
-        gmail,
-        contact_number,
-        previous_school,
-        track,
-        term1_elective,
-        term2_elective,
-        term3_elective
+        lrn, full_name, address, gmail, contact_number,
+        previous_school, track, term1_elective, term2_elective, term3_elective
     } = req.body || {};
 
     if (!lrn || !full_name || !gmail) {
@@ -796,25 +753,14 @@ app.put('/api/students/:id', verifyAdminSession, async (req, res) => {
         WHERE id = ?
     `;
 
-    const values = [
-        String(lrn).trim(),
-        String(full_name).trim(),
-        address || '',
-        String(gmail).trim(),
-        contact_number || '',
-        previous_school || '',
-        track || '',
-        term1_elective || '',
-        term2_elective || '',
-        term3_elective || '',
-        studentId
-    ];
-
     try {
-        await promiseDB.query(sql, values);
+        await promiseDB.query(sql, [
+            String(lrn).trim(), String(full_name).trim(), address || '', String(gmail).trim(),
+            contact_number || '', previous_school || '', track || '',
+            term1_elective || '', term2_elective || '', term3_elective || '', studentId
+        ]);
         res.status(200).json({ success: true, message: 'Student record updated successfully.' });
     } catch (err) {
-        console.error('UPDATE STUDENT ERROR:', err.message);
         if (err.code === 'ER_DUP_ENTRY') {
             return res.status(400).json({ error: 'Another student is already using this LRN.' });
         }
@@ -823,7 +769,7 @@ app.put('/api/students/:id', verifyAdminSession, async (req, res) => {
 });
 
 // ==========================================
-// 9. UPDATE PERSONNEL CREDENTIALS (INCLUDING 2FA EMAIL)
+// 9. UPDATE EXISTING PERSONNEL CREDENTIALS
 // ==========================================
 
 app.put('/api/admin/credentials', verifyAdminSession, async (req, res) => {
@@ -839,24 +785,21 @@ app.put('/api/admin/credentials', verifyAdminSession, async (req, res) => {
 
     try {
         const [rows] = await promiseDB.query('SELECT * FROM personnel LIMIT 1');
-        if (rows.length === 0) {
-            return res.status(404).json({ error: 'Personnel record not found.' });
-        }
+        if (rows.length === 0) return res.status(404).json({ error: 'Personnel record not found.' });
 
         const currentPersonnel = rows[0];
-
         if (currentPersonnel.password !== old_password) {
             return res.status(401).json({ error: 'Incorrect current password.' });
         }
 
         const updatedEmail = new_email && new_email.includes('@') ? new_email.trim() : currentPersonnel.email;
+        await promiseDB.query(
+            'UPDATE personnel SET username = ?, email = ?, password = ? WHERE id = ?',
+            [new_username.trim(), updatedEmail, new_password.trim(), currentPersonnel.id]
+        );
 
-        const updateSql = 'UPDATE personnel SET username = ?, email = ?, password = ? WHERE id = ?';
-        await promiseDB.query(updateSql, [new_username.trim(), updatedEmail, new_password.trim(), currentPersonnel.id]);
-
-        res.status(200).json({ success: true, message: 'Personnel credentials & 2FA email updated successfully.' });
+        res.status(200).json({ success: true, message: 'Personnel credentials updated successfully.' });
     } catch (err) {
-        console.error('UPDATE CREDENTIALS ERROR:', err.message);
         res.status(500).json({ error: 'Failed to update credentials.' });
     }
 });
@@ -866,24 +809,10 @@ app.put('/api/admin/credentials', verifyAdminSession, async (req, res) => {
 // ==========================================
 
 app.delete('/api/students/:id', verifyAdminSession, (req, res) => {
-    const studentId = req.params.id;
-
-    const sql = 'DELETE FROM students WHERE id = ?';
-
-    db.query(sql, [studentId], (err, result) => {
-        if (err) {
-            console.error('DELETE STUDENT ERROR:', err.message);
-            return res.status(500).json({ error: 'Unable to delete student record.' });
-        }
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Student record not found.' });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: 'Student record deleted successfully.'
-        });
+    db.query('DELETE FROM students WHERE id = ?', [req.params.id], (err, result) => {
+        if (err) return res.status(500).json({ error: 'Unable to delete student record.' });
+        if (result.affectedRows === 0) return res.status(404).json({ error: 'Student record not found.' });
+        res.status(200).json({ success: true, message: 'Student record deleted successfully.' });
     });
 });
 

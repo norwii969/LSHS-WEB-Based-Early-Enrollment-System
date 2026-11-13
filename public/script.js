@@ -13,32 +13,88 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  const btnChangeCredentials = document.getElementById('btnChangeCredentials');
-  if (btnChangeCredentials) {
-    btnChangeCredentials.addEventListener('click', openChangeCredentialsModal);
-  }
+  // Student Public Action Buttons
+  document.getElementById('btnStudentRequestEdit')?.addEventListener('click', openStudentCorrectionRequestModal);
+  document.getElementById('btnStudentSelfEdit')?.addEventListener('click', openStudentSelfEditOTPFlow);
 
-  const btnStudentRequestEdit = document.getElementById('btnStudentRequestEdit');
-  if (btnStudentRequestEdit) {
-    btnStudentRequestEdit.addEventListener('click', openStudentCorrectionRequestModal);
-  }
+  // Personnel Dashboard Action Buttons
+  document.getElementById('btnChangeCredentials')?.addEventListener('click', openChangeCredentialsModal);
+  document.getElementById('btnCreateNewPersonnel')?.addEventListener('click', openCreateNewPersonnelModal);
+  document.getElementById('btnRefreshData')?.addEventListener('click', () => {
+    loadEnrolledStudents();
+    loadCorrectionRequests();
+    Swal.fire({
+      icon: 'success',
+      title: 'Refreshed!',
+      text: 'Latest student records loaded.',
+      timer: 1000,
+      showConfirmButton: false
+    });
+  });
 
-  const btnStudentSelfEdit = document.getElementById('btnStudentSelfEdit');
-  if (btnStudentSelfEdit) {
-    btnStudentSelfEdit.addEventListener('click', openStudentSelfEditOTPFlow);
+  // Search & Track Filter Listeners
+  document.getElementById('searchStudentInput')?.addEventListener('input', applyDashboardFilters);
+  document.getElementById('filterTrackSelect')?.addEventListener('change', applyDashboardFilters);
+
+  // Export CSV / Excel Button
+  document.getElementById('btnExportCSV')?.addEventListener('click', exportStudentsToCSV);
+
+  // Auto-inject "+ Add New Personnel" button beside Account Settings if not yet in HTML
+  const credBtn = document.getElementById('btnChangeCredentials');
+  if (credBtn && !document.getElementById('btnCreateNewPersonnel')) {
+    const newStaffBtn = document.createElement('button');
+    newStaffBtn.id = 'btnCreateNewPersonnel';
+    newStaffBtn.type = 'button';
+    newStaffBtn.innerHTML = '➕ Add New Personnel';
+    newStaffBtn.style.cssText = 'background: #198754; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-left: 8px; font-size: 0.85rem;';
+    newStaffBtn.addEventListener('click', openCreateNewPersonnelModal);
+    credBtn.parentNode.insertBefore(newStaffBtn, credBtn.nextSibling);
   }
 });
 
+// ==========================================
+// 1. TRACKS & ELECTIVES DROPDOWN LOGIC
+// ==========================================
 const electivesData = {
   "Academic Track": {
-    term1: ["Computer Programming / ICT", "Basic Entrepreneurship", "Journalism & Creative Writing", "Speech and Stage Arts"],
-    term2: ["Web Development Basics", "Financial Literacy & Accounting", "Environmental Science", "Digital Media & Arts"],
-    term3: ["Advanced Computer Science", "Business Plan & Innovation", "Research & Data Analytics", "Work Immersion Elective"]
+    term1: [
+      "Computer Programming / ICT",
+      "Basic Entrepreneurship",
+      "Journalism & Creative Writing",
+      "Speech and Stage Arts"
+    ],
+    term2: [
+      "Web Development Basics",
+      "Financial Literacy & Accounting",
+      "Environmental Science",
+      "Digital Media & Arts"
+    ],
+    term3: [
+      "Advanced Computer Science",
+      "Business Plan & Innovation",
+      "Research & Data Analytics",
+      "Work Immersion Elective"
+    ]
   },
   "TVL Track": {
-    term1: ["Computer Systems Servicing (CSS)", "Cookery & Culinary Basics", "Bread & Pastry Production", "Electrical Installation & Maintenance"],
-    term2: ["Network Fundamentals & Cabling", "Food & Beverage Service", "Commercial Cooking", "Shielded Metal Arc Welding (SMAW)"],
-    term3: ["TVL Work Immersion / OJT", "Technical Drafting & CAD", "Automotive Servicing", "Agri-Crop Production"]
+    term1: [
+      "Computer Systems Servicing (CSS)",
+      "Cookery & Culinary Basics",
+      "Bread & Pastry Production",
+      "Electrical Installation & Maintenance"
+    ],
+    term2: [
+      "Network Fundamentals & Cabling",
+      "Food & Beverage Service",
+      "Commercial Cooking",
+      "Shielded Metal Arc Welding (SMAW)"
+    ],
+    term3: [
+      "TVL Work Immersion / OJT",
+      "Technical Drafting & CAD",
+      "Automotive Servicing",
+      "Agri-Crop Production"
+    ]
   }
 };
 
@@ -46,9 +102,7 @@ function updateElectives() {
   const selectedTrackInput = document.querySelector('input[name="track"]:checked');
   if (!selectedTrackInput) return;
 
-  const selectedTrack = selectedTrackInput.value;
-  const data = electivesData[selectedTrack];
-
+  const data = electivesData[selectedTrackInput.value];
   if (data) {
     populateDropdown('term1Elective', data.term1, 'Select Term 1');
     populateDropdown('term2Elective', data.term2, 'Select Term 2');
@@ -61,7 +115,6 @@ function populateDropdown(selectId, options, placeholder) {
   if (!selectElem) return;
 
   selectElem.innerHTML = `<option value="" disabled selected>${placeholder}</option>`;
-  
   options.forEach(opt => {
     const optionNode = document.createElement('option');
     optionNode.value = opt;
@@ -74,8 +127,10 @@ document.querySelectorAll('input[name="track"]').forEach(radio => {
   radio.addEventListener('change', updateElectives);
 });
 
-// Submit Enrollment Form Logic with SweetAlert2
-document.getElementById('enrollmentForm').addEventListener('submit', async function(e) {
+// ==========================================
+// 2. STUDENT ENROLLMENT FORM SUBMISSION
+// ==========================================
+document.getElementById('enrollmentForm')?.addEventListener('submit', async function(e) {
   e.preventDefault();
 
   const lrnValue = document.getElementById('lrn').value;
@@ -83,7 +138,7 @@ document.getElementById('enrollmentForm').addEventListener('submit', async funct
     Swal.fire({
       icon: 'warning',
       title: 'Invalid LRN',
-      text: 'Learner Reference Number (LRN) must be exactly 12 digits.',
+      text: 'LRN must be exactly 12 digits.',
       confirmButtonColor: '#800000'
     });
     return;
@@ -104,9 +159,9 @@ document.getElementById('enrollmentForm').addEventListener('submit', async funct
 
   Swal.fire({
     title: 'Submitting Enrollment...',
-    text: 'Please wait...',
+    text: 'Please wait while we save your record and send your confirmation email...',
     allowOutsideClick: false,
-    didOpen: () => { Swal.showLoading(); }
+    didOpen: () => Swal.showLoading()
   });
 
   try {
@@ -124,15 +179,16 @@ document.getElementById('enrollmentForm').addEventListener('submit', async funct
         title: 'Enrollment Submitted!',
         html: `
           <p style="font-size: 0.95rem; color: #444; margin-bottom: 15px;">
-            Thank you for registering! Your application has been saved and a confirmation email has been sent to <strong>${formData.gmail}</strong>.
+            Confirmation email sent to <strong>${formData.gmail}</strong>.
           </p>
-          <div style="background-color: #fdf0f0; padding: 12px; border-radius: 8px; border: 1px dashed #800000;">
-            <span style="font-size: 0.85rem; color: #666; display: block;">Your Reference Number:</span>
-            <strong style="font-size: 1.3rem; color: #800000; letter-spacing: 1px;">${result.reference_number}</strong>
+          <div style="background-color: #fdf0f0; padding: 14px; border-radius: 8px; border: 1px dashed #800000;">
+            <span style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 4px;">
+              Your Reference Number (Save this for tracking & editing):
+            </span>
+            <strong style="font-size: 1.35rem; color: #800000; letter-spacing: 1px;">
+              ${result.reference_number}
+            </strong>
           </div>
-          <p style="font-size: 0.8rem; color: #777; margin-top: 12px;">
-            Please save or take a screenshot of your reference number for verification.
-          </p>
         `,
         icon: 'success',
         confirmButtonText: 'Great, Thanks!',
@@ -143,25 +199,25 @@ document.getElementById('enrollmentForm').addEventListener('submit', async funct
       });
     } else {
       Swal.fire({
-        title: 'Submission Failed',
-        text: result.error || 'LRN is already registered or Database Error.',
         icon: 'error',
+        title: 'Submission Failed',
+        text: result.error || 'An error occurred during enrollment.',
         confirmButtonColor: '#800000'
       });
     }
   } catch (error) {
     Swal.close();
     Swal.fire({
-      title: 'Server Error',
-      text: 'Could not connect to the server. Please ensure the server is active.',
       icon: 'error',
+      title: 'Server Error',
+      text: 'Could not connect to the server. Please try again later.',
       confirmButtonColor: '#800000'
     });
   }
 });
 
 // ==========================================
-// STUDENT SELF-EDIT WITH GMAIL OTP VERIFICATION
+// 3. STUDENT OTP SELF-EDIT FLOW
 // ==========================================
 async function openStudentSelfEditOTPFlow(e) {
   if (e) e.preventDefault();
@@ -169,10 +225,10 @@ async function openStudentSelfEditOTPFlow(e) {
   const { value: refNumber } = await Swal.fire({
     title: 'Edit My Enrollment Record',
     html: `
-      <p style="font-size: 0.85rem; color: #555; margin-bottom: 12px;">
-        Enter your <strong>Reference Number</strong>. We will send a 6-digit One-Time PIN (OTP) to your registered Gmail address to verify your identity.
+      <p style="font-size: 0.85rem; color: #555; margin-bottom: 10px;">
+        Enter your Reference Number. We will send a 6-digit OTP to your registered Gmail to verify your identity.
       </p>
-      <input type="text" id="otpRefInput" class="swal2-input" placeholder="Reference No. (e.g., LSHS-2026-XXXX)">
+      <input type="text" id="otpRefInput" class="swal2-input" placeholder="e.g., LSHS-2026-XXXX">
     `,
     showCancelButton: true,
     confirmButtonText: 'Send OTP Code',
@@ -180,7 +236,7 @@ async function openStudentSelfEditOTPFlow(e) {
     preConfirm: () => {
       const val = document.getElementById('otpRefInput').value.trim();
       if (!val) {
-        Swal.showValidationMessage('Please enter your Reference Number!');
+        Swal.showValidationMessage('Please enter your Reference Number.');
         return false;
       }
       return val;
@@ -190,8 +246,8 @@ async function openStudentSelfEditOTPFlow(e) {
   if (!refNumber) return;
 
   Swal.fire({
-    title: 'Sending OTP to Gmail...',
-    text: 'Please wait...',
+    title: 'Sending OTP...',
+    text: 'Delivering security code to your registered Gmail...',
     allowOutsideClick: false,
     didOpen: () => Swal.showLoading()
   });
@@ -202,6 +258,7 @@ async function openStudentSelfEditOTPFlow(e) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reference_number: refNumber })
     });
+
     const sendData = await sendRes.json();
     Swal.close();
 
@@ -213,44 +270,53 @@ async function openStudentSelfEditOTPFlow(e) {
     const { value: otpCode } = await Swal.fire({
       title: 'Verify Your Identity',
       html: `
-        <p style="font-size: 0.85rem; color: #555; margin-bottom: 12px;">
-          A 6-digit OTP has been sent to <strong>${sendData.masked_email}</strong>.<br>
-          Enter the code below (valid for 10 minutes):
+        <p style="font-size: 0.88rem; color: #444; margin-bottom: 10px;">
+          A 6-digit OTP has been sent to <strong>${sendData.masked_email}</strong>.<br>Enter code below:
         </p>
-        <input type="text" id="otpCodeInput" class="swal2-input" placeholder="6-Digit OTP" maxlength="6" style="text-align: center; letter-spacing: 6px; font-size: 1.3rem; font-weight: bold;">
       `,
+      input: 'text',
+      inputAttributes: {
+        maxlength: 6,
+        style: 'text-align: center; letter-spacing: 6px; font-size: 1.3rem; font-weight: bold;'
+      },
       showCancelButton: true,
       confirmButtonText: 'Verify OTP',
       confirmButtonColor: '#800000',
-      preConfirm: () => {
-        const code = document.getElementById('otpCodeInput').value.trim();
-        if (code.length !== 6) {
-          Swal.showValidationMessage('Please enter the 6-digit OTP code!');
+      preConfirm: (val) => {
+        if (!val || val.trim().length !== 6) {
+          Swal.showValidationMessage('Please enter the 6-digit OTP.');
           return false;
         }
-        return code;
+        return val.trim();
       }
     });
 
     if (!otpCode) return;
+
+    Swal.fire({
+      title: 'Verifying...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
 
     const verifyRes = await fetch('/api/student/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reference_number: refNumber, otp: otpCode })
     });
+
     const verifyData = await verifyRes.json();
+    Swal.close();
 
     if (!verifyRes.ok || !verifyData.success) {
-      Swal.fire('Verification Failed', verifyData.error || 'Invalid or expired OTP code.', 'error');
+      Swal.fire('Verification Failed', verifyData.error || 'Invalid or expired OTP.', 'error');
       return;
     }
 
     openStudentVerifiedEditModal(verifyData.student, otpCode);
-
   } catch (err) {
     Swal.close();
-    Swal.fire('Error', 'Could not connect to the server.', 'error');
+    Swal.fire('Error', 'Connection error. Please try again.', 'error');
   }
 }
 
@@ -258,18 +324,21 @@ async function openStudentVerifiedEditModal(student, verifiedOtp) {
   const { value: updatedValues } = await Swal.fire({
     title: 'Update Your Information',
     html: `
-      <div style="text-align: left; font-size: 0.85rem; display: flex; flex-direction: column; gap: 6px;">
-        <p style="font-size: 0.8rem; color: #28a745; font-weight: 700; margin: 0 0 6px;">✓ Identity Verified (${student.reference_number})</p>
-        <label style="font-weight:700;">LRN (12 Digits):</label>
-        <input id="self-edit-lrn" class="swal2-input" value="${student.lrn}" maxlength="12" style="margin: 0 0 6px;">
-        <label style="font-weight:700;">Full Name:</label>
-        <input id="self-edit-name" class="swal2-input" value="${student.full_name}" style="margin: 0 0 6px;">
-        <label style="font-weight:700;">Address:</label>
-        <input id="self-edit-address" class="swal2-input" value="${student.address || ''}" style="margin: 0 0 6px;">
-        <label style="font-weight:700;">Contact Number:</label>
-        <input id="self-edit-contact" class="swal2-input" value="${student.contact_number || ''}" style="margin: 0 0 6px;">
-        <label style="font-weight:700;">Previous School:</label>
-        <input id="self-edit-prev" class="swal2-input" value="${student.previous_school || ''}" style="margin: 0 0 6px;">
+      <div style="text-align: left; display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem;">
+        <label style="font-weight: 600;">Learner Reference Number (LRN):</label>
+        <input id="self-edit-lrn" class="swal2-input" value="${student.lrn}" maxlength="12" style="margin:0;">
+        
+        <label style="font-weight: 600;">Full Name:</label>
+        <input id="self-edit-name" class="swal2-input" value="${student.full_name}" style="margin:0;">
+        
+        <label style="font-weight: 600;">Home Address:</label>
+        <input id="self-edit-address" class="swal2-input" value="${student.address || ''}" style="margin:0;">
+        
+        <label style="font-weight: 600;">Contact Number:</label>
+        <input id="self-edit-contact" class="swal2-input" value="${student.contact_number || ''}" style="margin:0;">
+        
+        <label style="font-weight: 600;">Previous School:</label>
+        <input id="self-edit-prev" class="swal2-input" value="${student.previous_school || ''}" style="margin:0;">
       </div>
     `,
     showCancelButton: true,
@@ -278,8 +347,12 @@ async function openStudentVerifiedEditModal(student, verifiedOtp) {
     preConfirm: () => {
       const lrn = document.getElementById('self-edit-lrn').value.trim();
       const full_name = document.getElementById('self-edit-name').value.trim();
-      if (lrn.length !== 12 || !full_name) {
-        Swal.showValidationMessage('Please provide a valid 12-digit LRN and Full Name.');
+      if (lrn.length !== 12) {
+        Swal.showValidationMessage('LRN must be 12 digits.');
+        return false;
+      }
+      if (!full_name) {
+        Swal.showValidationMessage('Full Name cannot be empty.');
         return false;
       }
       return {
@@ -295,43 +368,48 @@ async function openStudentVerifiedEditModal(student, verifiedOtp) {
   });
 
   if (updatedValues) {
-    try {
-      const res = await fetch('/api/student/self-update', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedValues)
-      });
-      const resData = await res.json();
+    Swal.fire({
+      title: 'Saving Changes...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
 
-      if (res.ok && resData.success) {
-        Swal.fire({
-          icon: 'success',
-          title: 'Record Updated!',
-          text: 'Your enrollment information has been successfully updated.',
-          confirmButtonColor: '#800000'
-        });
-      } else {
-        Swal.fire('Update Failed', resData.error || 'Could not update your record.', 'error');
-      }
-    } catch (err) {
-      Swal.fire('Error', 'Server connection error.', 'error');
+    const res = await fetch('/api/student/self-update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedValues)
+    });
+    const resData = await res.json();
+    Swal.close();
+
+    if (res.ok && resData.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Updated!',
+        text: 'Your enrollment record has been updated successfully.',
+        confirmButtonColor: '#800000'
+      });
+    } else {
+      Swal.fire('Update Failed', resData.error || 'Could not update record.', 'error');
     }
   }
 }
 
-// STUDENT CORRECTION REQUEST MODAL
+// ==========================================
+// 4. STUDENT CORRECTION REQUEST MODAL
+// ==========================================
 function openStudentCorrectionRequestModal(e) {
   if (e) e.preventDefault();
 
   Swal.fire({
     title: 'Request Record Correction',
     html: `
-      <p style="font-size: 0.85rem; color: #555; margin-bottom: 12px;">
-        Entered incorrect details in your enrollment form? Request a correction from the Registrar:
+      <p style="font-size: 0.85rem; color: #555; margin-bottom: 10px;">
+        Need to change your Track, Electives, or Gmail? Submit a request to the LSHS Registrar.
       </p>
       <input type="text" id="reqRef" class="swal2-input" placeholder="Reference No. (e.g., LSHS-2026-XXXX)">
       <input type="text" id="reqLrn" class="swal2-input" placeholder="12-digit LRN" maxlength="12">
-      <textarea id="reqNotes" class="swal2-textarea" placeholder="Describe the changes needed (e.g., Incorrect LRN or Barangay address)" style="height: 90px;"></textarea>
+      <textarea id="reqNotes" class="swal2-textarea" placeholder="Describe the changes you need (e.g., Change Track from TVL to Academic)"></textarea>
     `,
     showCancelButton: true,
     confirmButtonText: 'Submit Request',
@@ -342,12 +420,19 @@ function openStudentCorrectionRequestModal(e) {
       const notes = document.getElementById('reqNotes').value.trim();
 
       if (!reference_number || !lrn || !notes) {
-        Swal.showValidationMessage('Please fill out all required fields!');
+        Swal.showValidationMessage('Please fill out all fields.');
+        return false;
       }
       return { reference_number, lrn, notes };
     }
   }).then(async (result) => {
     if (result.isConfirmed) {
+      Swal.fire({
+        title: 'Submitting Request...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
       try {
         const res = await fetch('/api/requests', {
           method: 'POST',
@@ -355,51 +440,49 @@ function openStudentCorrectionRequestModal(e) {
           body: JSON.stringify(result.value)
         });
         const data = await res.json();
+        Swal.close();
 
         if (res.ok && data.success) {
           Swal.fire({
             icon: 'success',
             title: 'Request Sent!',
-            text: 'Your correction request has been submitted to the Registrar Dashboard.',
+            text: 'Your correction request has been sent to the Registrar.',
             confirmButtonColor: '#800000'
           });
         } else {
-          Swal.fire('Failed', data.error || 'Reference Number or LRN not found.', 'error');
+          Swal.fire('Request Failed', data.error || 'Record not found.', 'error');
         }
       } catch (err) {
-        Swal.fire('Error', 'Server connection error.', 'error');
+        Swal.close();
+        Swal.fire('Error', 'Connection error.', 'error');
       }
     }
   });
 }
 
 // ==========================================
-// SECURE PERSONNEL LOGIN WITH 2FA GMAIL OTP
+// 5. PERSONNEL DIRECT LOGIN + FORGOT PASSWORD LINK
 // ==========================================
-document.getElementById('btnPersonnelLogin').addEventListener('click', function(e) {
+document.getElementById('btnPersonnelLogin')?.addEventListener('click', function(e) {
   e.preventDefault();
 
   Swal.fire({
     title: '🔒 Personnel Login',
     html: `
-      <p style="font-size: 0.82rem; color: #666; margin-bottom: 12px;">
-        Authorized Registrar & Admin Access Only (2FA Protected)
-      </p>
-      <input type="text" id="adminUser" class="swal2-input" placeholder="Username" style="margin-bottom: 10px;">
-      
-      <div style="position: relative; width: 80%; margin: 0 auto 10px;">
+      <p style="font-size: 0.85rem; color: #666; margin-bottom: 12px;">Authorized Registrar & Admin Access Only</p>
+      <input type="text" id="adminUser" class="swal2-input" placeholder="Username or Gmail" style="margin-bottom: 10px;">
+      <div style="position: relative; width: 80%; margin: 0 auto 8px;">
         <input type="password" id="adminPass" class="swal2-input" placeholder="Password" style="width: 100%; margin: 0; padding-right: 40px;">
         <span id="toggleAdminPass" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1rem; user-select: none;" title="Show/Hide Password">👁️</span>
       </div>
-
-      <p style="font-size: 0.75rem; color: #8a6d0b; margin-top: 10px; margin-bottom: 0;">
-        ⚠️ Security Policy: Login locks for 5 mins after 3 failed attempts.
-      </p>
+      <div style="width: 80%; margin: 0 auto 10px; text-align: right;">
+        <a href="#" id="linkForgotPassword" style="font-size: 0.8rem; color: #800000; font-weight: 600; text-decoration: underline;">Forgot / Reset Password?</a>
+      </div>
+      <p style="font-size: 0.75rem; color: #8a6d0b; margin-top: 6px; margin-bottom: 0;">⚠️ Security Policy: Login locks for 5 mins after 3 failed attempts.</p>
     `,
-    confirmButtonText: 'Continue & Send OTP',
+    confirmButtonText: 'Sign In',
     confirmButtonColor: '#800000',
     showCancelButton: true,
-    focusConfirm: false,
     didOpen: () => {
       const toggleBtn = document.getElementById('toggleAdminPass');
       const passInput = document.getElementById('adminPass');
@@ -410,11 +493,16 @@ document.getElementById('btnPersonnelLogin').addEventListener('click', function(
           toggleBtn.textContent = isPass ? '🙈' : '👁️';
         });
       }
+
+      document.getElementById('linkForgotPassword')?.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        Swal.close();
+        openForgotPasswordOTPFlow();
+      });
     },
     preConfirm: () => {
-      const username = Swal.getPopup().querySelector('#adminUser').value.trim();
-      const password = Swal.getPopup().querySelector('#adminPass').value;
-
+      const username = document.getElementById('adminUser').value.trim();
+      const password = document.getElementById('adminPass').value;
       if (!username || !password) {
         Swal.showValidationMessage('Please enter your username and password.');
         return false;
@@ -424,8 +512,7 @@ document.getElementById('btnPersonnelLogin').addEventListener('click', function(
   }).then(async (result) => {
     if (result.isConfirmed) {
       Swal.fire({
-        title: 'Verifying Credentials...',
-        text: 'Sending 2FA OTP to Personnel Gmail...',
+        title: 'Signing In...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
@@ -436,202 +523,437 @@ document.getElementById('btnPersonnelLogin').addEventListener('click', function(
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(result.value)
         });
-
         const data = await res.json();
         Swal.close();
 
-        if (res.ok && data.success && data.require_otp) {
-          // Step 2: Prompt for 6-Digit Personnel 2FA OTP
-          const { value: adminOtp } = await Swal.fire({
-            title: '🛡️ 2FA Security Verification',
-            html: `
-              <p style="font-size: 0.85rem; color: #555; margin-bottom: 12px;">
-                A 6-digit Security OTP has been sent to <strong>${data.masked_email}</strong>.<br>
-                Enter the code below to unlock the Registrar Dashboard:
-              </p>
-              <input type="text" id="adminOtpInput" class="swal2-input" placeholder="6-Digit OTP" maxlength="6" style="text-align: center; letter-spacing: 6px; font-size: 1.3rem; font-weight: bold;">
-            `,
-            showCancelButton: true,
-            confirmButtonText: 'Verify & Enter Dashboard',
-            confirmButtonColor: '#800000',
-            preConfirm: () => {
-              const code = document.getElementById('adminOtpInput').value.trim();
-              if (code.length !== 6) {
-                Swal.showValidationMessage('Please enter the 6-digit 2FA OTP code!');
-                return false;
-              }
-              return code;
-            }
+        if (res.ok && data.success) {
+          adminSessionToken = data.token;
+          Swal.fire({
+            icon: 'success',
+            title: 'Access Granted!',
+            text: `Welcome back, ${data.full_name || data.username}!`,
+            timer: 1100,
+            showConfirmButton: false
           });
-
-          if (!adminOtp) return;
-
-          const verifyRes = await fetch('/api/login/verify-otp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: data.username, otp: adminOtp })
-          });
-
-          const verifyData = await verifyRes.json();
-
-          if (verifyRes.ok && verifyData.success) {
-            adminSessionToken = verifyData.token;
-
-            Swal.fire({
-              icon: 'success',
-              title: 'Access Granted!',
-              text: '2FA verified. Welcome to the Registrar Dashboard.',
-              timer: 1200,
-              showConfirmButton: false
-            });
-
-            switchToPersonnelMode();
-            loadEnrolledStudents();
-            loadCorrectionRequests();
-          } else {
-            Swal.fire({
-              icon: 'error',
-              title: 'Verification Failed',
-              text: verifyData.error || 'Invalid or expired 2FA OTP code.',
-              confirmButtonColor: '#800000'
-            });
-          }
+          switchToPersonnelMode();
+          loadEnrolledStudents();
+          loadCorrectionRequests();
         } else {
           Swal.fire({
             icon: 'error',
             title: 'Access Denied',
-            text: data.error || 'Invalid username or password!',
+            text: data.error || 'Invalid credentials.',
             confirmButtonColor: '#800000'
           });
         }
       } catch (err) {
         Swal.close();
-        Swal.fire({ 
-          icon: 'error', 
-          title: 'Connection Error', 
-          text: 'Cannot connect to backend server.',
-          confirmButtonColor: '#800000'
-        });
+        Swal.fire('Error', 'Connection error.', 'error');
       }
     }
   });
 });
 
+// ==========================================
+// 6. PERSONNEL FORGOT / RESET PASSWORD VIA GMAIL OTP
+// ==========================================
+async function openForgotPasswordOTPFlow() {
+  const { value: identifier } = await Swal.fire({
+    title: '🔑 Reset Personnel Password',
+    html: `
+      <p style="font-size: 0.85rem; color: #555; margin-bottom: 10px;">
+        Enter your registered Username or Gmail address. We will send a 6-digit OTP to verify your identity.
+      </p>
+      <input type="text" id="resetIdentifierInput" class="swal2-input" placeholder="Username or Gmail">
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Send Reset OTP',
+    confirmButtonColor: '#800000',
+    preConfirm: () => {
+      const val = document.getElementById('resetIdentifierInput').value.trim();
+      if (!val) {
+        Swal.showValidationMessage('Please enter your username or email.');
+        return false;
+      }
+      return val;
+    }
+  });
+
+  if (!identifier) return;
+
+  Swal.fire({
+    title: 'Sending Reset OTP...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+
+  try {
+    const res = await fetch('/api/personnel/forgot-password/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier })
+    });
+    const data = await res.json();
+    Swal.close();
+
+    if (!res.ok || !data.success) {
+      Swal.fire('Not Found', data.error || 'Account not found.', 'error');
+      return;
+    }
+
+    const { value: resetDetails } = await Swal.fire({
+      title: '🛡️ Verify OTP & Set New Password',
+      html: `
+        <p style="font-size: 0.85rem; color: #555; margin-bottom: 10px;">
+          Enter the 6-digit OTP sent to <strong>${data.masked_email}</strong>
+        </p>
+        <input type="text" id="resetOtpInput" class="swal2-input" placeholder="6-Digit OTP" maxlength="6" style="text-align: center; letter-spacing: 6px; font-weight: bold;">
+        <input type="password" id="resetNewPassInput" class="swal2-input" placeholder="New Password (min. 6 chars)">
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Reset Password',
+      confirmButtonColor: '#800000',
+      preConfirm: () => {
+        const otp = document.getElementById('resetOtpInput').value.trim();
+        const new_password = document.getElementById('resetNewPassInput').value.trim();
+        if (!otp || otp.length !== 6) {
+          Swal.showValidationMessage('Please enter the 6-digit OTP.');
+          return false;
+        }
+        if (new_password.length < 6) {
+          Swal.showValidationMessage('New password must be at least 6 characters.');
+          return false;
+        }
+        return { username: data.username, otp, new_password };
+      }
+    });
+
+    if (!resetDetails) return;
+
+    Swal.fire({
+      title: 'Updating Password...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    const saveRes = await fetch('/api/personnel/forgot-password/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(resetDetails)
+    });
+    const saveData = await saveRes.json();
+    Swal.close();
+
+    if (saveRes.ok && saveData.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Password Updated!',
+        text: saveData.message,
+        confirmButtonColor: '#800000'
+      });
+    } else {
+      Swal.fire('Reset Failed', saveData.error || 'Invalid or expired OTP.', 'error');
+    }
+  } catch (err) {
+    Swal.close();
+    Swal.fire('Error', 'Connection error.', 'error');
+  }
+}
+
+// ==========================================
+// 7. CREATE NEW PERSONNEL ACCOUNT WITH GMAIL OTP VERIFICATION
+// ==========================================
+async function openCreateNewPersonnelModal() {
+  const { value: staffDetails } = await Swal.fire({
+    title: '➕ Create New Personnel Account',
+    html: `
+      <p style="font-size: 0.82rem; color: #555; margin-bottom: 10px;">
+        A 6-digit verification OTP will be sent to the new personnel's Gmail before the account is created.
+      </p>
+      <div style="text-align: left; display: flex; flex-direction: column; gap: 6px;">
+        <label style="font-size: 0.8rem; font-weight: 600;">Full Name:</label>
+        <input type="text" id="newStaffFullName" class="swal2-input" placeholder="e.g., Maria Santos" style="margin: 0;">
+        
+        <label style="font-size: 0.8rem; font-weight: 600;">Username:</label>
+        <input type="text" id="newStaffUsername" class="swal2-input" placeholder="e.g., msantos" style="margin: 0;">
+        
+        <label style="font-size: 0.8rem; font-weight: 600;">Active Gmail Address:</label>
+        <input type="email" id="newStaffEmail" class="swal2-input" placeholder="e.g., maria@gmail.com" style="margin: 0;">
+        
+        <label style="font-size: 0.8rem; font-weight: 600;">Password (min. 6 chars):</label>
+        <input type="password" id="newStaffPassword" class="swal2-input" placeholder="Enter password" style="margin: 0;">
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Send Gmail Verification OTP',
+    confirmButtonColor: '#198754',
+    preConfirm: () => {
+      const full_name = document.getElementById('newStaffFullName').value.trim();
+      const username = document.getElementById('newStaffUsername').value.trim();
+      const email = document.getElementById('newStaffEmail').value.trim();
+      const password = document.getElementById('newStaffPassword').value.trim();
+
+      if (!full_name || !username || !email || !password) {
+        Swal.showValidationMessage('Please fill out all fields.');
+        return false;
+      }
+      if (!email.includes('@')) {
+        Swal.showValidationMessage('Please enter a valid Gmail address.');
+        return false;
+      }
+      if (password.length < 6) {
+        Swal.showValidationMessage('Password must be at least 6 characters.');
+        return false;
+      }
+      return { full_name, username, email, password };
+    }
+  });
+
+  if (!staffDetails) return;
+
+  Swal.fire({
+    title: 'Sending Verification OTP...',
+    text: `Sending to ${staffDetails.email}...`,
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+
+  try {
+    const sendRes = await fetch('/api/personnel/create/send-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': adminSessionToken
+      },
+      body: JSON.stringify(staffDetails)
+    });
+    const sendData = await sendRes.json();
+    Swal.close();
+
+    if (!sendRes.ok || !sendData.success) {
+      Swal.fire('Failed', sendData.error || 'Could not send OTP.', 'error');
+      return;
+    }
+
+    const { value: enteredOtp } = await Swal.fire({
+      title: '📧 Verify New Personnel Gmail',
+      html: `Enter the 6-digit OTP sent to <strong>${staffDetails.email}</strong> to confirm the email is valid and active:`,
+      input: 'text',
+      inputAttributes: {
+        maxlength: 6,
+        style: 'text-align: center; letter-spacing: 6px; font-size: 1.3rem; font-weight: bold;'
+      },
+      showCancelButton: true,
+      confirmButtonText: 'Verify & Create Account',
+      confirmButtonColor: '#198754',
+      preConfirm: (val) => {
+        if (!val || val.trim().length !== 6) {
+          Swal.showValidationMessage('Please enter the 6-digit verification OTP.');
+          return false;
+        }
+        return val.trim();
+      }
+    });
+
+    if (!enteredOtp) return;
+
+    Swal.fire({
+      title: 'Creating Account...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    const verifyRes = await fetch('/api/personnel/create/verify-and-save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': adminSessionToken
+      },
+      body: JSON.stringify({ ...staffDetails, otp: enteredOtp })
+    });
+    const verifyData = await verifyRes.json();
+    Swal.close();
+
+    if (verifyRes.ok && verifyData.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Account Created!',
+        text: verifyData.message,
+        confirmButtonColor: '#800000'
+      });
+    } else {
+      Swal.fire('Verification Failed', verifyData.error || 'Invalid or expired OTP.', 'error');
+    }
+  } catch (err) {
+    Swal.close();
+    Swal.fire('Error', 'Connection error.', 'error');
+  }
+}
+
+// ==========================================
+// 8. DASHBOARD VIEWS, FILTERS & CSV EXPORT
+// ==========================================
 function switchToPersonnelMode() {
   document.getElementById('studentPublicView').style.display = 'none';
   document.getElementById('navLinksList').style.display = 'none';
   document.getElementById('navButtonsContainer').style.display = 'none';
-
-  const dashboard = document.getElementById('adminDashboardSection');
-  if (dashboard) {
-    dashboard.style.cssText = "display: block !important; padding: 20px 4% 60px !important;";
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
+  document.getElementById('adminDashboardSection').style.cssText = "display: block !important; padding: 20px 4% 60px !important;";
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function switchToStudentMode() {
   document.getElementById('studentPublicView').style.display = 'block';
   document.getElementById('navLinksList').style.display = 'flex';
   document.getElementById('navButtonsContainer').style.display = 'flex';
-
-  const dashboard = document.getElementById('adminDashboardSection');
-  if (dashboard) {
-    dashboard.style.cssText = "display: none !important;";
-  }
+  document.getElementById('adminDashboardSection').style.cssText = "display: none !important;";
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function loadEnrolledStudents() {
   try {
-    const response = await fetch('/api/students');
-    const students = await response.json();
-    globalStudentsData = students || [];
-
+    const res = await fetch('/api/students');
+    globalStudentsData = await res.json() || [];
     updateSummaryCards(globalStudentsData, globalRequestsData);
-    renderTableRows(globalStudentsData);
+    applyDashboardFilters();
   } catch (err) {
-    console.error('Failed to fetch students:', err);
+    console.error('Error loading students:', err);
   }
 }
 
 async function loadCorrectionRequests() {
   try {
-    const response = await fetch('/api/requests');
-    const requests = await response.json();
-    globalRequestsData = requests || [];
-
+    const res = await fetch('/api/requests');
+    globalRequestsData = await res.json() || [];
     updateSummaryCards(globalStudentsData, globalRequestsData);
     renderRequestsTable(globalRequestsData);
   } catch (err) {
-    console.error('Failed to fetch requests:', err);
+    console.error('Error loading requests:', err);
   }
 }
 
 function updateSummaryCards(students, requests = []) {
-  const total = students.length;
-  const acad = students.filter(s => s.track === 'Academic Track').length;
-  const tvl = students.filter(s => s.track === 'TVL Track').length;
-  const pendingRequests = requests.length;
+  const totalElem = document.getElementById('statTotalEnrollees');
+  const acadElem = document.getElementById('statAcademicCount');
+  const tvlElem = document.getElementById('statTvlCount');
+  const reqElem = document.getElementById('statRequestsCount');
 
-  document.getElementById('statTotalEnrollees').textContent = total;
-  document.getElementById('statAcademicCount').textContent = acad;
-  document.getElementById('statTvlCount').textContent = tvl;
-  if (document.getElementById('statRequestsCount')) {
-    document.getElementById('statRequestsCount').textContent = pendingRequests;
-  }
+  if (totalElem) totalElem.textContent = students.length;
+  if (acadElem) acadElem.textContent = students.filter(s => s.track === 'Academic Track').length;
+  if (tvlElem) tvlElem.textContent = students.filter(s => s.track === 'TVL Track').length;
+  if (reqElem) reqElem.textContent = requests.length;
 }
 
-function renderTableRows(students) {
-  const tbody = document.getElementById('studentsTableBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
+function applyDashboardFilters() {
+  const searchTerm = (document.getElementById('searchStudentInput')?.value || '').toLowerCase().trim();
+  const trackFilter = document.getElementById('filterTrackSelect')?.value || 'All';
 
-  if (!students || students.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 20px; color: #777;">No matching student submissions found.</td></tr>`;
+  const filtered = globalStudentsData.filter(st => {
+    const matchesSearch =
+      (st.full_name || '').toLowerCase().includes(searchTerm) ||
+      (st.lrn || '').toLowerCase().includes(searchTerm) ||
+      (st.reference_number || '').toLowerCase().includes(searchTerm) ||
+      (st.gmail || '').toLowerCase().includes(searchTerm);
+
+    const matchesTrack = trackFilter === 'All' || st.track === trackFilter;
+    return matchesSearch && matchesTrack;
+  });
+
+  renderTableRows(filtered);
+}
+
+function exportStudentsToCSV() {
+  if (globalStudentsData.length === 0) {
+    Swal.fire('No Data', 'There are no student records to export.', 'info');
     return;
   }
 
+  const headers = [
+    'Reference Number',
+    'LRN',
+    'Full Name',
+    'Address',
+    'Gmail',
+    'Contact Number',
+    'Previous School',
+    'Track',
+    'Term 1 Elective',
+    'Term 2 Elective',
+    'Term 3 Elective',
+    'Status'
+  ];
+
+  const csvRows = [headers.join(',')];
+
+  globalStudentsData.forEach(st => {
+    const row = [
+      `"${st.reference_number || ''}"`,
+      `"${st.lrn || ''}"`,
+      `"${st.full_name || ''}"`,
+      `"${(st.address || '').replace(/"/g, '""')}"`,
+      `"${st.gmail || ''}"`,
+      `"${st.contact_number || ''}"`,
+      `"${(st.previous_school || '').replace(/"/g, '""')}"`,
+      `"${st.track || ''}"`,
+      `"${st.term1_elective || ''}"`,
+      `"${st.term2_elective || ''}"`,
+      `"${st.term3_elective || ''}"`,
+      `"${st.status || 'Pending'}"`
+    ];
+    csvRows.push(row.join(','));
+  });
+
+  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `LSHS_Early_Enrollment_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// ==========================================
+// 9. RENDER STUDENT & REQUEST TABLES + CRUD
+// ==========================================
+function renderTableRows(students) {
+  const tbody = document.getElementById('studentsTableBody');
+  if (!tbody) return;
+
+  if (students.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 24px; color: #777;">No matching student records found.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = '';
+
   students.forEach(st => {
     const tr = document.createElement('tr');
-    const trackBadgeClass = st.track === 'Academic Track' ? 'badge-track-acad' : 'badge-track-tvl';
     const isApproved = st.status === 'Approved';
 
-    const statusBadge = isApproved
-      ? `<span style="background: #d4edda; color: #155724; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 0.78rem; white-space: nowrap;">✅ Approved</span>`
-      : `<span style="background: #fff3cd; color: #856404; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 0.78rem; white-space: nowrap;">⏳ Pending</span>`;
-
-    const approveButtonHtml = !isApproved
-      ? `<button 
-          onclick="approveStudent(${st.id}, '${st.full_name}')" 
-          style="background: #28a745; color: #ffffff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">
-          ✓ Approve
-        </button>`
-      : '';
-
     tr.innerHTML = `
-      <td style="padding: 12px 16px; font-weight: 700; color: #800000;">${st.reference_number || 'N/A'}</td>
+      <td style="padding: 12px 16px; font-weight: 700; color: #800000;">${st.reference_number}</td>
       <td style="padding: 12px 16px;">${st.lrn}</td>
       <td style="padding: 12px 16px;"><strong>${st.full_name}</strong></td>
       <td style="padding: 12px 16px;">${st.gmail}</td>
       <td style="padding: 12px 16px;">${st.contact_number}</td>
-      <td style="padding: 12px 16px;"><span class="${trackBadgeClass}">${st.track}</span></td>
+      <td style="padding: 12px 16px;">
+        <span class="${st.track === 'Academic Track' ? 'badge-track-acad' : 'badge-track-tvl'}">
+          ${st.track}
+        </span>
+      </td>
       <td style="padding: 12px 16px;">${st.term1_elective}</td>
       <td style="padding: 12px 16px;">${st.term2_elective}</td>
       <td style="padding: 12px 16px;">${st.term3_elective}</td>
-      <td style="padding: 12px 16px;">${statusBadge}</td>
+      <td style="padding: 12px 16px;">
+        ${isApproved
+          ? '<span style="background: #d4edda; color: #155724; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 0.78rem;">✅ Approved</span>'
+          : '<span style="background: #fff3cd; color: #856404; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 0.78rem;">⏳ Pending</span>'}
+      </td>
       <td style="padding: 12px 16px; text-align: center;">
         <div style="display: flex; gap: 6px; justify-content: center;">
-          ${approveButtonHtml}
-          <button 
-            onclick="editStudent(${st.id})" 
-            style="background: #cca43b; color: #ffffff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">
-            Edit
-          </button>
-          <button 
-            onclick="deleteStudent(${st.id}, '${st.full_name}')" 
-            style="background: #dc3545; color: #ffffff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">
-            Delete
-          </button>
+          ${!isApproved ? `<button onclick="approveStudent(${st.id}, '${st.full_name}')" style="background: #28a745; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">✓ Approve</button>` : ''}
+          <button onclick="editStudent(${st.id})" style="background: #cca43b; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">Edit</button>
+          <button onclick="deleteStudent(${st.id}, '${st.full_name}')" style="background: #dc3545; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">Delete</button>
         </div>
       </td>
     `;
@@ -639,64 +961,54 @@ function renderTableRows(students) {
   });
 }
 
-// APPROVE STUDENT & SEND GMAIL NOTIFICATION
-async function approveStudent(studentId, studentName) {
-  const confirmResult = await Swal.fire({
-    title: 'Approve Student Enrollment?',
-    html: `Approve <strong>${studentName}</strong> and send an official acceptance email to their Gmail?`,
+async function approveStudent(id, name) {
+  const confirm = await Swal.fire({
+    title: 'Approve Enrollment?',
+    text: `Approve ${name} and send official acceptance email via Gmail?`,
     icon: 'question',
     showCancelButton: true,
-    confirmButtonColor: '#28a745',
-    cancelButtonColor: '#6c757d',
-    confirmButtonText: 'Yes, Approve & Notify!'
+    confirmButtonText: 'Yes, Approve',
+    confirmButtonColor: '#28a745'
   });
 
-  if (!confirmResult.isConfirmed) return;
+  if (!confirm.isConfirmed) return;
 
   Swal.fire({
-    title: 'Approving & Sending Email...',
-    text: 'Please wait...',
+    title: 'Approving...',
     allowOutsideClick: false,
     didOpen: () => Swal.showLoading()
   });
 
   try {
-    const res = await fetch(`/api/students/${studentId}/approve`, {
+    const res = await fetch(`/api/students/${id}/approve`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-token': adminSessionToken || ''
-      }
+      headers: { 'x-admin-token': adminSessionToken }
     });
     const data = await res.json();
     Swal.close();
 
     if (res.ok && data.success) {
-      Swal.fire({
-        icon: 'success',
-        title: 'Enrollment Approved!',
-        text: data.message || `${studentName} has been approved and notified via Gmail.`,
-        confirmButtonColor: '#800000'
-      });
+      Swal.fire('Approved!', data.message, 'success');
       loadEnrolledStudents();
     } else {
-      Swal.fire('Approval Failed', data.error || 'Could not approve student.', 'error');
+      Swal.fire('Failed', data.error || 'Could not approve student.', 'error');
     }
   } catch (err) {
     Swal.close();
-    Swal.fire('Error', 'Server connection error.', 'error');
+    Swal.fire('Error', 'Connection error.', 'error');
   }
 }
 
 function renderRequestsTable(requests) {
   const tbody = document.getElementById('requestsTableBody');
   if (!tbody) return;
-  tbody.innerHTML = '';
 
-  if (!requests || requests.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #777;">No pending student correction requests.</td></tr>`;
+  if (requests.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #777;">No pending correction requests.</td></tr>`;
     return;
   }
+
+  tbody.innerHTML = '';
 
   requests.forEach(req => {
     const tr = document.createElement('tr');
@@ -707,283 +1019,178 @@ function renderRequestsTable(requests) {
       <td style="padding: 12px 16px; color: #d9534f; font-weight: 600;">${req.notes}</td>
       <td style="padding: 12px 16px;">${new Date(req.created_at).toLocaleDateString()}</td>
       <td style="padding: 12px 16px; text-align: center;">
-        <button 
-          onclick="resolveAndEditRequest(${req.id}, ${req.student_id})" 
-          style="background: #28a745; color: #ffffff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">
-          Review & Edit
-        </button>
+        <button onclick="resolveAndEditRequest(${req.id}, ${req.student_id})" style="background: #28a745; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">Review & Edit</button>
       </td>
     `;
     tbody.appendChild(tr);
   });
 }
 
-async function resolveAndEditRequest(requestId, studentId) {
+async function resolveAndEditRequest(reqId, studentId) {
   await editStudent(studentId);
-
-  try {
-    await fetch(`/api/requests/${requestId}`, { method: 'DELETE' });
-    loadCorrectionRequests();
-  } catch (err) {
-    console.error('Failed to resolve request', err);
-  }
+  await fetch(`/api/requests/${reqId}`, { method: 'DELETE' });
+  loadCorrectionRequests();
 }
 
-// EDIT STUDENT RECORD MODAL LOGIC (PERSONNEL)
-async function editStudent(studentId) {
-  const student = globalStudentsData.find(s => s.id === studentId);
+async function editStudent(id) {
+  const student = globalStudentsData.find(s => s.id === id);
   if (!student) return;
 
   const { value: formValues } = await Swal.fire({
     title: 'Edit Student Application',
     html: `
-      <div style="text-align: left; font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px;">
-        <label style="font-weight:700;">LRN:</label>
-        <input id="swal-edit-lrn" class="swal2-input" value="${student.lrn}" maxlength="12" style="margin: 0 0 8px;">
-        <label style="font-weight:700;">Full Name:</label>
-        <input id="swal-edit-name" class="swal2-input" value="${student.full_name}" style="margin: 0 0 8px;">
-        <label style="font-weight:700;">Address:</label>
-        <input id="swal-edit-address" class="swal2-input" value="${student.address || ''}" style="margin: 0 0 8px;">
-        <label style="font-weight:700;">Gmail Address:</label>
-        <input id="swal-edit-gmail" class="swal2-input" value="${student.gmail}" style="margin: 0 0 8px;">
-        <label style="font-weight:700;">Contact Number:</label>
-        <input id="swal-edit-contact" class="swal2-input" value="${student.contact_number}" style="margin: 0 0 8px;">
-        <label style="font-weight:700;">Previous School:</label>
-        <input id="swal-edit-prev" class="swal2-input" value="${student.previous_school || ''}" style="margin: 0 0 8px;">
+      <div style="text-align: left; display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem;">
+        <label style="font-weight: 600;">LRN:</label>
+        <input id="swal-edit-lrn" class="swal2-input" value="${student.lrn}" maxlength="12" style="margin:0;">
+        
+        <label style="font-weight: 600;">Full Name:</label>
+        <input id="swal-edit-name" class="swal2-input" value="${student.full_name}" style="margin:0;">
+        
+        <label style="font-weight: 600;">Address:</label>
+        <input id="swal-edit-address" class="swal2-input" value="${student.address || ''}" style="margin:0;">
+        
+        <label style="font-weight: 600;">Gmail:</label>
+        <input id="swal-edit-gmail" class="swal2-input" value="${student.gmail}" style="margin:0;">
+        
+        <label style="font-weight: 600;">Contact Number:</label>
+        <input id="swal-edit-contact" class="swal2-input" value="${student.contact_number}" style="margin:0;">
+        
+        <label style="font-weight: 600;">Previous School:</label>
+        <input id="swal-edit-prev" class="swal2-input" value="${student.previous_school || ''}" style="margin:0;">
+        
+        <label style="font-weight: 600;">Track:</label>
+        <select id="swal-edit-track" class="swal2-input" style="margin:0;">
+          <option value="Academic Track" ${student.track === 'Academic Track' ? 'selected' : ''}>Academic Track</option>
+          <option value="TVL Track" ${student.track === 'TVL Track' ? 'selected' : ''}>TVL Track</option>
+        </select>
+        
+        <label style="font-weight: 600;">Term 1 Elective:</label>
+        <input id="swal-edit-t1" class="swal2-input" value="${student.term1_elective || ''}" style="margin:0;">
+        
+        <label style="font-weight: 600;">Term 2 Elective:</label>
+        <input id="swal-edit-t2" class="swal2-input" value="${student.term2_elective || ''}" style="margin:0;">
+        
+        <label style="font-weight: 600;">Term 3 Elective:</label>
+        <input id="swal-edit-t3" class="swal2-input" value="${student.term3_elective || ''}" style="margin:0;">
       </div>
     `,
-    focusConfirm: false,
     showCancelButton: true,
     confirmButtonText: 'Save Changes',
     confirmButtonColor: '#800000',
-    preConfirm: () => {
-      const lrn = document.getElementById('swal-edit-lrn').value;
-      if (lrn.length !== 12) {
-        Swal.showValidationMessage('LRN must be exactly 12 digits');
-        return false;
-      }
-      return {
-        lrn: lrn,
-        full_name: document.getElementById('swal-edit-name').value,
-        address: document.getElementById('swal-edit-address').value,
-        gmail: document.getElementById('swal-edit-gmail').value,
-        contact_number: document.getElementById('swal-edit-contact').value,
-        previous_school: document.getElementById('swal-edit-prev').value,
-        track: student.track,
-        term1_elective: student.term1_elective,
-        term2_elective: student.term2_elective,
-        term3_elective: student.term3_elective
-      };
-    }
+    preConfirm: () => ({
+      lrn: document.getElementById('swal-edit-lrn').value.trim(),
+      full_name: document.getElementById('swal-edit-name').value.trim(),
+      address: document.getElementById('swal-edit-address').value.trim(),
+      gmail: document.getElementById('swal-edit-gmail').value.trim(),
+      contact_number: document.getElementById('swal-edit-contact').value.trim(),
+      previous_school: document.getElementById('swal-edit-prev').value.trim(),
+      track: document.getElementById('swal-edit-track').value,
+      term1_elective: document.getElementById('swal-edit-t1').value.trim(),
+      term2_elective: document.getElementById('swal-edit-t2').value.trim(),
+      term3_elective: document.getElementById('swal-edit-t3').value.trim()
+    })
   });
 
   if (formValues) {
-    try {
-      const res = await fetch(`/api/students/${studentId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-token': adminSessionToken || ''
-        },
-        body: JSON.stringify(formValues)
-      });
-      const resData = await res.json();
-
-      if (res.ok && resData.success) {
-        Swal.fire({
-          icon: 'success',
-          title: 'Student Updated!',
-          text: 'Record has been successfully updated.',
-          timer: 1500,
-          showConfirmButton: false
-        });
-        loadEnrolledStudents();
-      } else {
-        Swal.fire('Error', resData.error || 'Failed to update record.', 'error');
-      }
-    } catch (err) {
-      Swal.fire('Error', 'Could not connect to backend server.', 'error');
-    }
-  }
-}
-
-// CHANGE PERSONNEL CREDENTIALS & 2FA EMAIL MODAL LOGIC
-function openChangeCredentialsModal() {
-  Swal.fire({
-    title: 'Account Settings',
-    text: 'Update Personnel Credentials & 2FA OTP Email',
-    html: `
-      <input type="password" id="oldPass" class="swal2-input" placeholder="Current Password">
-      <input type="text" id="newUser" class="swal2-input" placeholder="New Username">
-      <input type="email" id="newEmail" class="swal2-input" placeholder="2FA OTP Gmail Address">
-      <input type="password" id="newPass" class="swal2-input" placeholder="New Password (min 6 chars)">
-    `,
-    showCancelButton: true,
-    confirmButtonText: 'Update Credentials',
-    confirmButtonColor: '#800000',
-    preConfirm: () => {
-      const old_password = document.getElementById('oldPass').value;
-      const new_username = document.getElementById('newUser').value;
-      const new_email = document.getElementById('newEmail').value;
-      const new_password = document.getElementById('newPass').value;
-
-      if (!old_password || !new_username || !new_password) {
-        Swal.showValidationMessage('Please fill in required fields!');
-      }
-      return { old_password, new_username, new_email, new_password };
-    }
-  }).then(async (result) => {
-    if (result.isConfirmed) {
-      try {
-        const res = await fetch('/api/admin/credentials', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-admin-token': adminSessionToken || ''
-          },
-          body: JSON.stringify(result.value)
-        });
-        const data = await res.json();
-
-        if (res.ok && data.success) {
-          Swal.fire('Success!', 'Personnel account credentials & 2FA email updated.', 'success');
-        } else {
-          Swal.fire('Failed', data.error || 'Could not update credentials.', 'error');
-        }
-      } catch (err) {
-        Swal.fire('Error', 'Server connection error.', 'error');
-      }
-    }
-  });
-}
-
-function filterDashboardData() {
-  const query = document.getElementById('dashboardSearch').value.toLowerCase().trim();
-  const trackFilter = document.getElementById('dashboardFilterTrack').value;
-
-  const filtered = globalStudentsData.filter(st => {
-    const matchQuery = (st.full_name || '').toLowerCase().includes(query) ||
-                       (st.lrn || '').toLowerCase().includes(query) ||
-                       (st.reference_number || '').toLowerCase().includes(query);
-    const matchTrack = trackFilter === 'ALL' || st.track === trackFilter;
-
-    return matchQuery && matchTrack;
-  });
-
-  renderTableRows(filtered);
-}
-
-document.getElementById('dashboardSearch')?.addEventListener('input', filterDashboardData);
-document.getElementById('dashboardFilterTrack')?.addEventListener('change', filterDashboardData);
-
-// Export CSV / Excel Functionality
-document.getElementById('btnExportCSV')?.addEventListener('click', () => {
-  if (!globalStudentsData || globalStudentsData.length === 0) {
-    Swal.fire({
-      icon: 'info',
-      title: 'No Data to Export',
-      text: 'There are currently no student enrollment records available to export.',
-      confirmButtonColor: '#800000'
-    });
-    return;
-  }
-
-  const headers = ["Ref. No.", "LRN", "Full Name", "Gmail", "Contact", "Address", "Previous School", "Track", "Term 1 Elective", "Term 2 Elective", "Term 3 Elective", "Status"];
-  const rows = globalStudentsData.map(st => [
-    `"${st.reference_number || ''}"`,
-    `"${st.lrn || ''}"`,
-    `"${st.full_name || ''}"`,
-    `"${st.gmail || ''}"`,
-    `"${st.contact_number || ''}"`,
-    `"${st.address || ''}"`,
-    `"${st.previous_school || ''}"`,
-    `"${st.track || ''}"`,
-    `"${st.term1_elective || ''}"`,
-    `"${st.term2_elective || ''}"`,
-    `"${st.term3_elective || ''}"`,
-    `"${st.status || 'Pending'}"`
-  ]);
-
-  const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `LSHS_Early_Enrollment_Records_${new Date().toISOString().slice(0,10)}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-});
-
-async function deleteStudent(studentId, studentName) {
-  const confirmResult = await Swal.fire({
-    title: 'Delete Student Record?',
-    text: `Are you sure you want to delete the enrollment record of ${studentName}? This action cannot be undone.`,
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#dc3545',
-    cancelButtonColor: '#6c757d',
-    confirmButtonText: 'Yes, Delete It!'
-  });
-
-  if (!confirmResult.isConfirmed) return;
-
-  try {
-    const response = await fetch(`/api/students/${studentId}`, {
-      method: 'DELETE',
+    const res = await fetch(`/api/students/${id}`, {
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'x-admin-token': adminSessionToken || ''
-      }
+        'x-admin-token': adminSessionToken
+      },
+      body: JSON.stringify(formValues)
     });
+    const resData = await res.json();
 
-    const result = await response.json();
-
-    if (response.ok && result.success) {
+    if (res.ok && resData.success) {
       Swal.fire({
         icon: 'success',
-        title: 'Record Deleted!',
-        text: 'Student application record has been removed.',
+        title: 'Updated!',
+        text: 'Student record updated successfully.',
         timer: 1500,
         showConfirmButton: false
       });
       loadEnrolledStudents();
     } else {
-      Swal.fire({
-        icon: 'error',
-        title: 'Delete Failed',
-        text: result.error || 'Could not delete the record.',
-        confirmButtonColor: '#800000'
-      });
+      Swal.fire('Error', resData.error || 'Failed to update record.', 'error');
     }
-  } catch (err) {
-    console.error('Error deleting student:', err);
-    Swal.fire({
-      icon: 'error',
-      title: 'Server Error',
-      text: 'An error occurred while deleting the student record.',
-      confirmButtonColor: '#800000'
-    });
   }
 }
 
-const btnLogout = document.getElementById('btnLogout');
-if (btnLogout) {
-  btnLogout.addEventListener('click', async function() {
-    if (adminSessionToken) {
-      await fetch('/api/logout', {
-        method: 'POST',
-        headers: { 'x-admin-token': adminSessionToken }
-      }).catch(() => {});
-      adminSessionToken = null;
-    }
+function openChangeCredentialsModal() {
+  Swal.fire({
+    title: 'Account Settings',
+    html: `
+      <input type="password" id="oldPass" class="swal2-input" placeholder="Current Password">
+      <input type="text" id="newUser" class="swal2-input" placeholder="New Username">
+      <input type="email" id="newEmail" class="swal2-input" placeholder="Recovery Gmail">
+      <input type="password" id="newPass" class="swal2-input" placeholder="New Password (min. 6 chars)">
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Update Credentials',
+    confirmButtonColor: '#800000',
+    preConfirm: () => ({
+      old_password: document.getElementById('oldPass').value,
+      new_username: document.getElementById('newUser').value,
+      new_email: document.getElementById('newEmail').value,
+      new_password: document.getElementById('newPass').value
+    })
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      const res = await fetch('/api/admin/credentials', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': adminSessionToken
+        },
+        body: JSON.stringify(result.value)
+      });
+      const data = await res.json();
 
-    switchToStudentMode();
+      if (res.ok && data.success) {
+        Swal.fire('Success!', 'Credentials updated successfully.', 'success');
+      } else {
+        Swal.fire('Failed', data.error || 'Could not update credentials.', 'error');
+      }
+    }
+  });
+}
+
+async function deleteStudent(id, name) {
+  const confirm = await Swal.fire({
+    title: 'Delete Record?',
+    text: `Are you sure you want to permanently delete ${name}'s record?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Yes, Delete',
+    confirmButtonColor: '#dc3545'
+  });
+
+  if (!confirm.isConfirmed) return;
+
+  const res = await fetch(`/api/students/${id}`, {
+    method: 'DELETE',
+    headers: { 'x-admin-token': adminSessionToken }
+  });
+
+  if (res.ok) {
     Swal.fire({
-      icon: 'info',
-      title: 'Logged Out',
-      text: 'You have been signed out of the Personnel Dashboard.',
+      icon: 'success',
+      title: 'Deleted!',
       timer: 1500,
       showConfirmButton: false
     });
-  });
+    loadEnrolledStudents();
+  }
 }
+
+document.getElementById('btnLogout')?.addEventListener('click', async () => {
+  if (adminSessionToken) {
+    await fetch('/api/logout', {
+      method: 'POST',
+      headers: { 'x-admin-token': adminSessionToken }
+    }).catch(() => {});
+  }
+  adminSessionToken = null;
+  switchToStudentMode();
+});
