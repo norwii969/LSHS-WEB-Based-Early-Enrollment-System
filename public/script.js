@@ -1,5 +1,4 @@
 let globalStudentsData = [];
-let globalRequestsData = [];
 let adminSessionToken = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -13,10 +12,32 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Hide "Request Edit" button since Pre-Enrollment Review + Gmail OTP prevents Gmail typos
+  // Hide "Request Edit" button on Student View
   const reqEditBtn = document.getElementById('btnStudentRequestEdit');
   if (reqEditBtn) {
     reqEditBtn.style.display = 'none';
+  }
+
+  // Hide "Pending Student Correction Requests" section & divider on Dashboard
+  const requestsTableBody = document.getElementById('requestsTableBody');
+  if (requestsTableBody) {
+    const requestsTable = requestsTableBody.closest('table');
+    const requestsWrapper = requestsTable ? requestsTable.parentElement : null;
+    if (requestsWrapper) {
+      requestsWrapper.style.display = 'none';
+      // Hide the heading & divider line right above the table if present
+      let prev = requestsWrapper.previousElementSibling;
+      while (prev && (prev.tagName === 'HR' || prev.tagName === 'H2' || prev.tagName === 'H3' || prev.textContent.includes('Correction Requests'))) {
+        prev.style.display = 'none';
+        prev = prev.previousElementSibling;
+      }
+    }
+  }
+
+  // Hide "Edit Requests" summary card at the top of Dashboard
+  const statRequestsCard = document.getElementById('statRequestsCount')?.closest('div');
+  if (statRequestsCard) {
+    statRequestsCard.style.display = 'none';
   }
 
   // Student Self-Edit via OTP Button
@@ -26,7 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnCreateNewPersonnel')?.addEventListener('click', openCreateNewPersonnelModal);
   document.getElementById('btnRefreshData')?.addEventListener('click', () => {
     loadEnrolledStudents();
-    loadCorrectionRequests();
     Swal.fire({
       icon: 'success',
       title: 'Refreshed!',
@@ -193,7 +213,6 @@ document.getElementById('enrollmentForm')?.addEventListener('submit', async func
     width: '540px'
   });
 
-  // If student clicks "Go Back & Edit", return to form without submitting
   if (!reviewConfirm.isConfirmed) return;
 
   // STEP 2: Send 6-Digit OTP to verify that Gmail is valid and active
@@ -567,7 +586,6 @@ document.getElementById('btnPersonnelLogin')?.addEventListener('click', function
           });
           switchToPersonnelMode();
           loadEnrolledStudents();
-          loadCorrectionRequests();
         } else {
           Swal.fire({
             icon: 'error',
@@ -843,34 +861,21 @@ async function loadEnrolledStudents() {
   try {
     const res = await fetch('/api/students');
     globalStudentsData = await res.json() || [];
-    updateSummaryCards(globalStudentsData, globalRequestsData);
+    updateSummaryCards(globalStudentsData);
     applyDashboardFilters();
   } catch (err) {
     console.error('Error loading students:', err);
   }
 }
 
-async function loadCorrectionRequests() {
-  try {
-    const res = await fetch('/api/requests');
-    globalRequestsData = await res.json() || [];
-    updateSummaryCards(globalStudentsData, globalRequestsData);
-    renderRequestsTable(globalRequestsData);
-  } catch (err) {
-    console.error('Error loading requests:', err);
-  }
-}
-
-function updateSummaryCards(students, requests = []) {
+function updateSummaryCards(students) {
   const totalElem = document.getElementById('statTotalEnrollees');
   const acadElem = document.getElementById('statAcademicCount');
   const tvlElem = document.getElementById('statTvlCount');
-  const reqElem = document.getElementById('statRequestsCount');
 
   if (totalElem) totalElem.textContent = students.length;
   if (acadElem) acadElem.textContent = students.filter(s => s.track === 'Academic Track').length;
   if (tvlElem) tvlElem.textContent = students.filter(s => s.track === 'TVL Track').length;
-  if (reqElem) reqElem.textContent = requests.length;
 }
 
 function applyDashboardFilters() {
@@ -943,7 +948,7 @@ function exportStudentsToCSV() {
 }
 
 // ==========================================
-// 8. RENDER STUDENT & REQUEST TABLES + CRUD
+// 8. RENDER STUDENT TABLE + CRUD
 // ==========================================
 function renderTableRows(students) {
   const tbody = document.getElementById('studentsTableBody');
@@ -1027,39 +1032,6 @@ async function approveStudent(id, name) {
     Swal.close();
     Swal.fire('Error', 'Connection error.', 'error');
   }
-}
-
-function renderRequestsTable(requests) {
-  const tbody = document.getElementById('requestsTableBody');
-  if (!tbody) return;
-
-  if (requests.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #777;">No pending correction requests.</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = '';
-
-  requests.forEach(req => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="padding: 12px 16px; font-weight: 700; color: #800000;">${req.reference_number}</td>
-      <td style="padding: 12px 16px;">${req.lrn}</td>
-      <td style="padding: 12px 16px;"><strong>${req.student_name || 'N/A'}</strong></td>
-      <td style="padding: 12px 16px; color: #d9534f; font-weight: 600;">${req.notes}</td>
-      <td style="padding: 12px 16px;">${new Date(req.created_at).toLocaleDateString()}</td>
-      <td style="padding: 12px 16px; text-align: center;">
-        <button onclick="resolveAndEditRequest(${req.id}, ${req.student_id})" style="background: #28a745; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem;">Review & Edit</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-async function resolveAndEditRequest(reqId, studentId) {
-  await editStudent(studentId);
-  await fetch(`/api/requests/${reqId}`, { method: 'DELETE' });
-  loadCorrectionRequests();
 }
 
 async function editStudent(id) {
