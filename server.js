@@ -13,6 +13,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Temporary in-memory stores for OTPs & Security
+const preEnrollOtpStore = new Map();      // Pre-Enrollment Gmail Verification OTP
 const otpStore = new Map();               // Student Self-Edit OTP
 const resetOtpStore = new Map();          // Personnel Password Reset OTP
 const newAccountOtpStore = new Map();     // New Personnel Account Gmail Verification OTP
@@ -110,7 +111,7 @@ async function initializeDatabase() {
 
     await promiseDB.query(createPersonnelTableQuery);
 
-    // C. Create Correction Requests Table
+    // C. Create Correction Requests Table (Kept for existing DB compatibility)
     const createRequestsTableQuery = `
         CREATE TABLE IF NOT EXISTS correction_requests (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -199,15 +200,68 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// 5. STUDENT ENROLLMENT
+// 5. PRE-ENROLLMENT GMAIL OTP & SUBMISSION
 // ==========================================
 
+// Step 1: Send 6-Digit OTP to verify Gmail before saving enrollment
+app.post('/api/enroll/send-otp', async (req, res) => {
+    try {
+        const { lrn, full_name, gmail, track, term1_elective, term2_elective, term3_elective } = req.body || {};
+
+        if (!lrn || !full_name || !gmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(gmail.trim())) {
+            return res.status(400).json({
+                error: 'Please enter a valid 12-digit LRN, Full Name, and Gmail address.'
+            });
+        }
+
+        // Check if LRN already exists before sending OTP
+        const [existingLrn] = await promiseDB.query('SELECT id FROM students WHERE lrn = ?', [String(lrn).trim()]);
+        if (existingLrn.length > 0) {
+            return res.status(400).json({
+                error: 'This LRN is already registered in the system.'
+            });
+        }
+
+        const cleanEmail = gmail.trim().toLowerCase();
+        const otp = String(crypto.randomInt(100000, 1000000));
+        const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+        preEnrollOtpStore.set(cleanEmail, {
+            otp,
+            expiresAt,
+            lrn: String(lrn).trim()
+        });
+
+        await sendEmailViaEmailJS({
+            to_email: gmail.trim(),
+            full_name: full_name.trim(),
+            lrn: String(lrn).trim(),
+            reference_number: `GMAIL VERIFICATION OTP: ${otp} (Valid for 10 mins)`,
+            track: track || '',
+            term1_elective: term1_elective || '',
+            term2_elective: term2_elective || '',
+            term3_elective: term3_elective || ''
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: `Verification OTP sent to ${gmail.trim()}`
+        });
+    } catch (err) {
+        console.error('PRE-ENROLL OTP ERROR:', err.message);
+        return res.status(500).json({
+            error: 'Could not send OTP to that Gmail address. Please check if your Gmail spelling is correct.'
+        });
+    }
+});
+
+// Step 2: Verify OTP & Save Official Enrollment
 async function handleEnrollment(req, res) {
     try {
         const {
             lrn, full_name, address, gmail, email,
             contact_number, previous_school, track,
-            term1_elective, term2_elective, term3_elective
+            term1_elective, term2_elective, term3_elective, otp
         } = req.body || {};
 
         const recipientEmail = gmail || email;
@@ -219,6 +273,16 @@ async function handleEnrollment(req, res) {
         ) {
             return res.status(400).json({
                 error: 'Please provide a valid LRN, full name, and email address.'
+            });
+        }
+
+        // Verify Pre-Enrollment OTP
+        const emailKey = recipientEmail.trim().toLowerCase();
+        const otpRecord = preEnrollOtpStore.get(emailKey);
+
+        if (!otp || !otpRecord || otpRecord.otp !== String(otp).trim() || Date.now() > otpRecord.expiresAt) {
+            return res.status(401).json({
+                error: 'Invalid or expired Gmail verification OTP. Please try again.'
             });
         }
 
@@ -255,6 +319,7 @@ async function handleEnrollment(req, res) {
         ];
 
         await promiseDB.query(sql, values);
+        preEnrollOtpStore.delete(emailKey);
         console.log('ENROLLMENT SAVED:', referenceNumber);
 
         try {
@@ -270,7 +335,7 @@ async function handleEnrollment(req, res) {
             return res.status(200).json({
                 success: true,
                 email_sent: false,
-                message: 'Enrollment saved, but email notification could not be sent.',
+                message: 'Enrollment saved, but confirmation email could not be sent.',
                 reference_number: referenceNumber
             });
         }
@@ -287,31 +352,8 @@ app.post('/api/enroll', handleEnrollment);
 app.post('/enroll', handleEnrollment);
 
 // ==========================================
-// 5.1 CORRECTION REQUESTS
+// 5.1 CORRECTION REQUESTS (Dashboard Compatibility)
 // ==========================================
-
-app.post('/api/requests', async (req, res) => {
-    const { reference_number, lrn, notes } = req.body || {};
-    try {
-        const [students] = await promiseDB.query(
-            'SELECT * FROM students WHERE reference_number = ? AND lrn = ?',
-            [reference_number, lrn]
-        );
-        if (students.length === 0) {
-            return res.status(404).json({ error: 'Reference Number or LRN does not match our records.' });
-        }
-
-        const student = students[0];
-        await promiseDB.query(
-            'INSERT INTO correction_requests (student_id, reference_number, lrn, notes) VALUES (?, ?, ?, ?)',
-            [student.id, reference_number, lrn, notes]
-        );
-
-        res.status(200).json({ success: true, message: 'Correction request submitted successfully.' });
-    } catch (err) {
-        res.status(500).json({ error: 'Database request failed.' });
-    }
-});
 
 app.get('/api/requests', async (req, res) => {
     try {
@@ -515,7 +557,7 @@ app.post('/api/logout', (req, res) => {
 // ==========================================
 
 app.post('/api/personnel/forgot-password/send-otp', async (req, res) => {
-    const { identifier } = req.body || {}; // username or email
+    const { identifier } = req.body || {};
     if (!identifier) {
         return res.status(400).json({ error: 'Please enter your Username or Gmail address.' });
     }
@@ -612,7 +654,6 @@ app.post('/api/personnel/create/send-otp', verifyAdminSession, async (req, res) 
     }
 
     try {
-        // Check if username or email already exists
         const [existing] = await promiseDB.query(
             'SELECT * FROM personnel WHERE username = ? OR email = ?',
             [username.trim(), email.trim()]
@@ -769,43 +810,7 @@ app.put('/api/students/:id', verifyAdminSession, async (req, res) => {
 });
 
 // ==========================================
-// 9. UPDATE EXISTING PERSONNEL CREDENTIALS
-// ==========================================
-
-app.put('/api/admin/credentials', verifyAdminSession, async (req, res) => {
-    const { old_password, new_username, new_email, new_password } = req.body || {};
-
-    if (!old_password || !new_username || !new_password) {
-        return res.status(400).json({ error: 'All fields are required.' });
-    }
-
-    if (new_password.trim().length < 6) {
-        return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
-    }
-
-    try {
-        const [rows] = await promiseDB.query('SELECT * FROM personnel LIMIT 1');
-        if (rows.length === 0) return res.status(404).json({ error: 'Personnel record not found.' });
-
-        const currentPersonnel = rows[0];
-        if (currentPersonnel.password !== old_password) {
-            return res.status(401).json({ error: 'Incorrect current password.' });
-        }
-
-        const updatedEmail = new_email && new_email.includes('@') ? new_email.trim() : currentPersonnel.email;
-        await promiseDB.query(
-            'UPDATE personnel SET username = ?, email = ?, password = ? WHERE id = ?',
-            [new_username.trim(), updatedEmail, new_password.trim(), currentPersonnel.id]
-        );
-
-        res.status(200).json({ success: true, message: 'Personnel credentials updated successfully.' });
-    } catch (err) {
-        res.status(500).json({ error: 'Failed to update credentials.' });
-    }
-});
-
-// ==========================================
-// 10. DELETE STUDENT APPLICANT
+// 9. DELETE STUDENT APPLICANT
 // ==========================================
 
 app.delete('/api/students/:id', verifyAdminSession, (req, res) => {
@@ -817,7 +822,7 @@ app.delete('/api/students/:id', verifyAdminSession, (req, res) => {
 });
 
 // ==========================================
-// 11. START SERVER
+// 10. START SERVER
 // ==========================================
 
 async function startServer() {

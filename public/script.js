@@ -13,8 +13,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Student Public Action Buttons
-  document.getElementById('btnStudentRequestEdit')?.addEventListener('click', openStudentCorrectionRequestModal);
+  // Hide "Request Edit" button since Pre-Enrollment Review + Gmail OTP prevents Gmail typos
+  const reqEditBtn = document.getElementById('btnStudentRequestEdit');
+  if (reqEditBtn) {
+    reqEditBtn.style.display = 'none';
+  }
+
+  // Student Self-Edit via OTP Button
   document.getElementById('btnStudentSelfEdit')?.addEventListener('click', openStudentSelfEditOTPFlow);
 
   // Personnel Dashboard Action Buttons
@@ -130,12 +135,12 @@ document.querySelectorAll('input[name="track"]').forEach(radio => {
 });
 
 // ==========================================
-// 2. STUDENT ENROLLMENT FORM SUBMISSION
+// 2. STUDENT ENROLLMENT REVIEW SCREEN + GMAIL OTP VERIFICATION
 // ==========================================
 document.getElementById('enrollmentForm')?.addEventListener('submit', async function(e) {
   e.preventDefault();
 
-  const lrnValue = document.getElementById('lrn').value;
+  const lrnValue = document.getElementById('lrn').value.trim();
   if (lrnValue.length !== 12) {
     Swal.fire({
       icon: 'warning',
@@ -148,29 +153,117 @@ document.getElementById('enrollmentForm')?.addEventListener('submit', async func
 
   const formData = {
     lrn: lrnValue,
-    full_name: document.getElementById('fullName').value,
-    address: document.getElementById('address').value,
-    gmail: document.getElementById('gmail').value,
-    contact_number: document.getElementById('contact').value,
-    previous_school: document.getElementById('prevSchool').value,
+    full_name: document.getElementById('fullName').value.trim(),
+    address: document.getElementById('address').value.trim(),
+    gmail: document.getElementById('gmail').value.trim(),
+    contact_number: document.getElementById('contact').value.trim(),
+    previous_school: document.getElementById('prevSchool').value.trim(),
     track: document.querySelector('input[name="track"]:checked').value,
     term1_elective: document.getElementById('term1Elective').value,
     term2_elective: document.getElementById('term2Elective').value,
     term3_elective: document.getElementById('term3Elective').value
   };
 
+  // STEP 1: Show Full Application Summary Review Screen
+  const reviewConfirm = await Swal.fire({
+    title: '📋 Review Your Enrollment Details',
+    html: `
+      <p style="font-size: 0.85rem; color: #555; margin-bottom: 12px;">
+        Please double-check all your details below—especially your <strong>Gmail Address</strong>—before verifying via OTP.
+      </p>
+      <div style="text-align: left; background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px 15px; font-size: 0.86rem; line-height: 1.65;">
+        <div><strong>LRN:</strong> ${formData.lrn}</div>
+        <div><strong>Full Name:</strong> ${formData.full_name}</div>
+        <div><strong>Address:</strong> ${formData.address}</div>
+        <div style="color: #800000;"><strong>Gmail Address:</strong> ${formData.gmail}</div>
+        <div><strong>Contact Number:</strong> ${formData.contact_number}</div>
+        <div><strong>Previous School:</strong> ${formData.previous_school}</div>
+        <hr style="margin: 8px 0; border: 0; border-top: 1px solid #ddd;">
+        <div><strong>Selected Track:</strong> ${formData.track}</div>
+        <div><strong>Term 1 Elective:</strong> ${formData.term1_elective}</div>
+        <div><strong>Term 2 Elective:</strong> ${formData.term2_elective}</div>
+        <div><strong>Term 3 Elective:</strong> ${formData.term3_elective}</div>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: '📧 Send OTP to Verify Gmail',
+    cancelButtonText: '✏️ Go Back & Edit',
+    confirmButtonColor: '#800000',
+    cancelButtonColor: '#6c757d',
+    width: '540px'
+  });
+
+  // If student clicks "Go Back & Edit", return to form without submitting
+  if (!reviewConfirm.isConfirmed) return;
+
+  // STEP 2: Send 6-Digit OTP to verify that Gmail is valid and active
   Swal.fire({
-    title: 'Submitting Enrollment...',
-    text: 'Please wait while we save your record and send your confirmation email...',
+    title: 'Sending Verification OTP...',
+    text: `Sending 6-digit PIN to ${formData.gmail}...`,
     allowOutsideClick: false,
     didOpen: () => Swal.showLoading()
   });
 
   try {
-    const response = await fetch('/api/enroll', {
+    const otpRes = await fetch('/api/enroll/send-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData)
+    });
+
+    const otpData = await otpRes.json();
+    Swal.close();
+
+    if (!otpRes.ok || !otpData.success) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Verification Failed',
+        text: otpData.error || 'Could not send OTP to your Gmail. Please check your spelling.',
+        confirmButtonColor: '#800000'
+      });
+      return;
+    }
+
+    // STEP 3: Ask Student to Enter the 6-Digit OTP from their Gmail
+    const { value: enteredOtp } = await Swal.fire({
+      title: '📧 Verify Your Gmail Address',
+      html: `
+        <p style="font-size: 0.88rem; color: #444; margin-bottom: 10px;">
+          We sent a 6-digit verification code to <strong>${formData.gmail}</strong>.<br>
+          Enter the code below to complete your enrollment:
+        </p>
+      `,
+      input: 'text',
+      inputAttributes: {
+        maxlength: 6,
+        style: 'text-align: center; letter-spacing: 6px; font-size: 1.35rem; font-weight: bold;'
+      },
+      showCancelButton: true,
+      confirmButtonText: 'Verify & Submit Enrollment',
+      confirmButtonColor: '#800000',
+      preConfirm: (val) => {
+        if (!val || val.trim().length !== 6) {
+          Swal.showValidationMessage('Please enter the 6-digit verification code from your Gmail.');
+          return false;
+        }
+        return val.trim();
+      }
+    });
+
+    if (!enteredOtp) return;
+
+    // STEP 4: Finalize Enrollment & Save to Aiven Database
+    Swal.fire({
+      title: 'Finalizing Enrollment...',
+      text: 'Saving your verified application...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    const response = await fetch('/api/enroll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...formData, otp: enteredOtp })
     });
 
     const result = await response.json();
@@ -178,10 +271,10 @@ document.getElementById('enrollmentForm')?.addEventListener('submit', async func
 
     if (response.ok && result.success) {
       Swal.fire({
-        title: 'Enrollment Submitted!',
+        title: 'Enrollment Verified & Submitted!',
         html: `
           <p style="font-size: 0.95rem; color: #444; margin-bottom: 15px;">
-            Confirmation email sent to <strong>${formData.gmail}</strong>.
+            Your Gmail is verified and your confirmation receipt has been sent to <strong>${formData.gmail}</strong>.
           </p>
           <div style="background-color: #fdf0f0; padding: 14px; border-radius: 8px; border: 1px dashed #800000;">
             <span style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 4px;">
@@ -203,7 +296,7 @@ document.getElementById('enrollmentForm')?.addEventListener('submit', async func
       Swal.fire({
         icon: 'error',
         title: 'Submission Failed',
-        text: result.error || 'An error occurred during enrollment.',
+        text: result.error || 'Invalid OTP or error occurred during enrollment.',
         confirmButtonColor: '#800000'
       });
     }
@@ -228,7 +321,7 @@ async function openStudentSelfEditOTPFlow(e) {
     title: 'Edit My Enrollment Record',
     html: `
       <p style="font-size: 0.85rem; color: #555; margin-bottom: 10px;">
-        Enter your Reference Number. We will send a 6-digit OTP to your registered Gmail to verify your identity.
+        Enter your Reference Number. We will send a 6-digit OTP to your verified Gmail to unlock your record.
       </p>
       <input type="text" id="otpRefInput" class="swal2-input" placeholder="e.g., LSHS-2026-XXXX">
     `,
@@ -398,72 +491,7 @@ async function openStudentVerifiedEditModal(student, verifiedOtp) {
 }
 
 // ==========================================
-// 4. STUDENT CORRECTION REQUEST MODAL
-// ==========================================
-function openStudentCorrectionRequestModal(e) {
-  if (e) e.preventDefault();
-
-  Swal.fire({
-    title: 'Request Record Correction',
-    html: `
-      <p style="font-size: 0.85rem; color: #555; margin-bottom: 10px;">
-        Need to change your Track, Electives, or Gmail? Submit a request to the LSHS Registrar.
-      </p>
-      <input type="text" id="reqRef" class="swal2-input" placeholder="Reference No. (e.g., LSHS-2026-XXXX)">
-      <input type="text" id="reqLrn" class="swal2-input" placeholder="12-digit LRN" maxlength="12">
-      <textarea id="reqNotes" class="swal2-textarea" placeholder="Describe the changes you need (e.g., Change Track from TVL to Academic)"></textarea>
-    `,
-    showCancelButton: true,
-    confirmButtonText: 'Submit Request',
-    confirmButtonColor: '#800000',
-    preConfirm: () => {
-      const reference_number = document.getElementById('reqRef').value.trim();
-      const lrn = document.getElementById('reqLrn').value.trim();
-      const notes = document.getElementById('reqNotes').value.trim();
-
-      if (!reference_number || !lrn || !notes) {
-        Swal.showValidationMessage('Please fill out all fields.');
-        return false;
-      }
-      return { reference_number, lrn, notes };
-    }
-  }).then(async (result) => {
-    if (result.isConfirmed) {
-      Swal.fire({
-        title: 'Submitting Request...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-      });
-
-      try {
-        const res = await fetch('/api/requests', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(result.value)
-        });
-        const data = await res.json();
-        Swal.close();
-
-        if (res.ok && data.success) {
-          Swal.fire({
-            icon: 'success',
-            title: 'Request Sent!',
-            text: 'Your correction request has been sent to the Registrar.',
-            confirmButtonColor: '#800000'
-          });
-        } else {
-          Swal.fire('Request Failed', data.error || 'Record not found.', 'error');
-        }
-      } catch (err) {
-        Swal.close();
-        Swal.fire('Error', 'Connection error.', 'error');
-      }
-    }
-  });
-}
-
-// ==========================================
-// 5. PERSONNEL DIRECT LOGIN + FORGOT PASSWORD LINK
+// 4. PERSONNEL DIRECT LOGIN + FORGOT PASSWORD LINK
 // ==========================================
 document.getElementById('btnPersonnelLogin')?.addEventListener('click', function(e) {
   e.preventDefault();
@@ -557,7 +585,7 @@ document.getElementById('btnPersonnelLogin')?.addEventListener('click', function
 });
 
 // ==========================================
-// 6. PERSONNEL FORGOT / RESET PASSWORD VIA GMAIL OTP
+// 5. PERSONNEL FORGOT / RESET PASSWORD VIA GMAIL OTP
 // ==========================================
 async function openForgotPasswordOTPFlow() {
   const { value: identifier } = await Swal.fire({
@@ -663,7 +691,7 @@ async function openForgotPasswordOTPFlow() {
 }
 
 // ==========================================
-// 7. CREATE NEW PERSONNEL ACCOUNT WITH GMAIL OTP VERIFICATION
+// 6. CREATE NEW PERSONNEL ACCOUNT WITH GMAIL OTP VERIFICATION
 // ==========================================
 async function openCreateNewPersonnelModal() {
   const { value: staffDetails } = await Swal.fire({
@@ -793,7 +821,7 @@ async function openCreateNewPersonnelModal() {
 }
 
 // ==========================================
-// 8. DASHBOARD VIEWS, FILTERS & CSV EXPORT
+// 7. DASHBOARD VIEWS, FILTERS & CSV EXPORT
 // ==========================================
 function switchToPersonnelMode() {
   document.getElementById('studentPublicView').style.display = 'none';
@@ -915,7 +943,7 @@ function exportStudentsToCSV() {
 }
 
 // ==========================================
-// 9. RENDER STUDENT & REQUEST TABLES + CRUD
+// 8. RENDER STUDENT & REQUEST TABLES + CRUD
 // ==========================================
 function renderTableRows(students) {
   const tbody = document.getElementById('studentsTableBody');
