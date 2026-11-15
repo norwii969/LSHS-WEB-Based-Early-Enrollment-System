@@ -729,12 +729,26 @@ async function openCreateNewPersonnelModal() {
         <input type="email" id="newStaffEmail" class="swal2-input" placeholder="e.g., maria@gmail.com" style="margin: 0;">
         
         <label style="font-size: 0.8rem; font-weight: 600;">Password (min. 6 chars):</label>
-        <input type="password" id="newStaffPassword" class="swal2-input" placeholder="Enter password" style="margin: 0;">
+        <div style="position: relative; width: 100%;">
+          <input type="password" id="newStaffPassword" class="swal2-input" placeholder="Enter password" style="width: 100%; margin: 0; padding-right: 40px;">
+          <span id="toggleNewStaffPass" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1rem; user-select: none;" title="Show/Hide Password">👁️</span>
+        </div>
       </div>
     `,
     showCancelButton: true,
     confirmButtonText: 'Send Gmail Verification OTP',
     confirmButtonColor: '#198754',
+    didOpen: () => {
+      const toggleBtn = document.getElementById('toggleNewStaffPass');
+      const passInput = document.getElementById('newStaffPassword');
+      if (toggleBtn && passInput) {
+        toggleBtn.addEventListener('click', () => {
+          const isPass = passInput.type === 'password';
+          passInput.type = isPass ? 'text' : 'password';
+          toggleBtn.textContent = isPass ? '🙈' : '👁️';
+        });
+      }
+    },
     preConfirm: () => {
       const full_name = document.getElementById('newStaffFullName').value.trim();
       const username = document.getElementById('newStaffUsername').value.trim();
