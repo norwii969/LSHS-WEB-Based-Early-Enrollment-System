@@ -949,7 +949,7 @@ function renderTableRows(students) {
   if (!tbody) return;
 
   if (students.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 24px; color: #777;">No matching student records found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; padding: 24px; color: #777;">No matching student records found.</td></tr>`;
     return;
   }
 
@@ -966,6 +966,8 @@ function renderTableRows(students) {
       <td style="padding: 12px 16px;"><strong>${st.full_name}</strong></td>
       <td style="padding: 12px 16px;">${st.gmail}</td>
       <td style="padding: 12px 16px;">${st.contact_number}</td>
+      <td style="padding: 12px 16px;">${st.previous_school || 'N/A'}</td>
+      <td style="padding: 12px 16px;">${st.address || 'N/A'}</td>
       <td style="padding: 12px 16px;">
         <span class="${isTech ? 'badge-track-tvl' : 'badge-track-acad'}">
           ${st.track}
