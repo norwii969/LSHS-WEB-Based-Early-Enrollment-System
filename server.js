@@ -13,11 +13,11 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Temporary in-memory stores for OTPs & Security
-const preEnrollOtpStore = new Map();      // Pre-Enrollment Gmail Verification OTP
-const otpStore = new Map();               // Student Self-Edit OTP
-const resetOtpStore = new Map();          // Personnel Password Reset OTP
+const preEnrollOtpStore = new Map();       // Pre-Enrollment Gmail Verification OTP
+const otpStore = new Map();                // Student Self-Edit OTP
+const resetOtpStore = new Map();           // Personnel Password Reset OTP
 const newAccountOtpStore = new Map();     // New Personnel Account Gmail Verification OTP
-const loginAttempts = new Map();          // Personnel Brute-force Lockout
+const loginAttempts = new Map();           // Personnel Brute-force Lockout
 const activeAdminSessions = new Set();    // Active Personnel Session Tokens
 
 // ==========================================
@@ -145,18 +145,19 @@ async function initializeDatabase() {
 // ==========================================
 
 const EMAILJS_SERVICE_ID = process.env.EMAILJS_SERVICE_ID;
-const EMAILJS_TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_ID;
+const EMAILJS_TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_ID;             // Para sa Enrollment Receipt
+const EMAILJS_OTP_TEMPLATE_ID = process.env.EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID; // Para sa OTP Verification
 const EMAILJS_PUBLIC_KEY = process.env.EMAILJS_PUBLIC_KEY;
 const EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY;
 
-async function sendEmailViaEmailJS(templateParams) {
-    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+async function sendEmailViaEmailJS(templateParams, templateId = EMAILJS_TEMPLATE_ID) {
+    if (!EMAILJS_SERVICE_ID || !templateId || !EMAILJS_PUBLIC_KEY) {
         throw new Error('EmailJS environment variables are incomplete.');
     }
 
     const emailData = {
         service_id: EMAILJS_SERVICE_ID,
-        template_id: EMAILJS_TEMPLATE_ID,
+        template_id: templateId,
         user_id: EMAILJS_PUBLIC_KEY,
         template_params: templateParams
     };
@@ -178,6 +179,7 @@ async function sendEmailViaEmailJS(templateParams) {
     return true;
 }
 
+// Magpapadala gamit ang Enrollment Receipt Template (Template 1)
 async function sendEnrollmentEmail(student, referenceNumber) {
     return sendEmailViaEmailJS({
         to_email: student.gmail,
@@ -188,7 +190,19 @@ async function sendEnrollmentEmail(student, referenceNumber) {
         term1_elective: student.term1_elective || '',
         term2_elective: student.term2_elective || '',
         term3_elective: student.term3_elective || ''
-    });
+    }, EMAILJS_TEMPLATE_ID);
+}
+
+// Magpapadala gamit ang OTP-only Template (Template 2)
+async function sendOtpOnlyEmail({ to_email, full_name, title, purposeText, otp }) {
+    return sendEmailViaEmailJS({
+        to_email: to_email,
+        full_name: full_name,
+        subject: `${title} - Lemery Senior High School`,
+        otp_title: title,
+        otp_message: purposeText,
+        otp_code: otp
+    }, EMAILJS_OTP_TEMPLATE_ID);
 }
 
 // ==========================================
@@ -206,7 +220,7 @@ app.get('/', (req, res) => {
 // Step 1: Send 6-Digit OTP to verify Gmail before saving enrollment
 app.post('/api/enroll/send-otp', async (req, res) => {
     try {
-        const { lrn, full_name, gmail, track, term1_elective, term2_elective, term3_elective } = req.body || {};
+        const { lrn, full_name, gmail } = req.body || {};
 
         if (!lrn || !full_name || !gmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(gmail.trim())) {
             return res.status(400).json({
@@ -232,15 +246,12 @@ app.post('/api/enroll/send-otp', async (req, res) => {
             lrn: String(lrn).trim()
         });
 
-        await sendEmailViaEmailJS({
+        await sendOtpOnlyEmail({
             to_email: gmail.trim(),
             full_name: full_name.trim(),
-            lrn: String(lrn).trim(),
-            reference_number: `GMAIL VERIFICATION OTP: ${otp} (Valid for 10 mins)`,
-            track: track || '',
-            term1_elective: term1_elective || '',
-            term2_elective: term2_elective || '',
-            term3_elective: term3_elective || ''
+            title: 'Early Enrollment Email Verification',
+            purposeText: 'Please use the secure One-Time Verification PIN below to confirm your Gmail address and complete your early enrollment application at Lemery Senior High School.',
+            otp: otp
         });
 
         return res.status(200).json({
@@ -403,15 +414,12 @@ app.post('/api/student/send-otp', async (req, res) => {
 
         otpStore.set(student.reference_number, { otp, expiresAt });
 
-        await sendEmailViaEmailJS({
+        await sendOtpOnlyEmail({
             to_email: student.gmail,
             full_name: student.full_name,
-            lrn: student.lrn,
-            reference_number: `SECURITY OTP CODE: ${otp} (Valid for 10 mins)`,
-            track: student.track || '',
-            term1_elective: student.term1_elective || '',
-            term2_elective: student.term2_elective || '',
-            term3_elective: student.term3_elective || ''
+            title: 'Student Portal Security Verification',
+            purposeText: 'You have requested to access or edit your enrollment details. Please use the verification PIN below.',
+            otp: otp
         });
 
         const parts = student.gmail.split('@');
@@ -590,15 +598,12 @@ app.post('/api/personnel/forgot-password/send-otp', async (req, res) => {
             userId: user.id
         });
 
-        await sendEmailViaEmailJS({
+        await sendOtpOnlyEmail({
             to_email: recipientEmail,
             full_name: user.full_name || user.username,
-            lrn: 'PASSWORD RESET SECURITY',
-            reference_number: `RESET PASSWORD OTP: ${otp} (Valid for 10 mins)`,
-            track: 'Personnel Account Recovery',
-            term1_elective: 'Password Reset Request',
-            term2_elective: 'Authorized Personnel Only',
-            term3_elective: 'Do not share this PIN'
+            title: 'Personnel Password Reset Security',
+            purposeText: 'A password reset was requested for your LSHS Registrar account. Use the PIN below to proceed.',
+            otp: otp
         });
 
         const parts = recipientEmail.split('@');
@@ -671,15 +676,12 @@ app.post('/api/personnel/create/send-otp', verifyAdminSession, async (req, res) 
             expiresAt
         });
 
-        await sendEmailViaEmailJS({
+        await sendOtpOnlyEmail({
             to_email: email.trim(),
             full_name: full_name.trim(),
-            lrn: 'NEW PERSONNEL VERIFICATION',
-            reference_number: `ACCOUNT VERIFICATION OTP: ${otp} (Valid for 10 mins)`,
-            track: 'LSHS Registrar Staff Onboarding',
-            term1_elective: 'Email Address Verification',
-            term2_elective: `Username: ${username.trim()}`,
-            term3_elective: 'Enter PIN to activate account'
+            title: 'New Personnel Account Verification',
+            purposeText: `You have been added as LSHS Registrar Staff under username "${username.trim()}". Please use the verification PIN below to activate your account.`,
+            otp: otp
         });
 
         res.status(200).json({ success: true, message: `Verification OTP sent to ${email.trim()}` });
@@ -748,16 +750,7 @@ app.put('/api/students/:id/approve', verifyAdminSession, async (req, res) => {
         await promiseDB.query("UPDATE students SET status = 'Approved' WHERE id = ?", [studentId]);
 
         try {
-            await sendEmailViaEmailJS({
-                to_email: student.gmail,
-                full_name: student.full_name,
-                lrn: student.lrn,
-                reference_number: `${student.reference_number} — OFFICIALLY APPROVED & ACCEPTED`,
-                track: student.track || '',
-                term1_elective: student.term1_elective || '',
-                term2_elective: student.term2_elective || '',
-                term3_elective: student.term3_elective || ''
-            });
+            await sendEnrollmentEmail(student, student.reference_number);
             res.status(200).json({
                 success: true,
                 message: `${student.full_name} is now officially APPROVED and notified via Gmail!`
@@ -813,7 +806,7 @@ app.put('/api/students/:id', verifyAdminSession, async (req, res) => {
 // 9. DELETE STUDENT APPLICANT
 // ==========================================
 
-app.delete('/api/students/:id', verifyAdminSession, (req, res) => {
+app.delete('/api/students/:id', verifyAdminSession, (req, res, next) => {
     db.query('DELETE FROM students WHERE id = ?', [req.params.id], (err, result) => {
         if (err) return res.status(500).json({ error: 'Unable to delete student record.' });
         if (result.affectedRows === 0) return res.status(404).json({ error: 'Student record not found.' });
