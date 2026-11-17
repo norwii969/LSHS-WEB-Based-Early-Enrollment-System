@@ -25,7 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const requestsWrapper = requestsTable ? requestsTable.parentElement : null;
     if (requestsWrapper) {
       requestsWrapper.style.display = 'none';
-      // Hide the heading & divider line right above the table if present
       let prev = requestsWrapper.previousElementSibling;
       while (prev && (prev.tagName === 'HR' || prev.tagName === 'H2' || prev.tagName === 'H3' || prev.textContent.includes('Correction Requests'))) {
         prev.style.display = 'none';
@@ -80,60 +79,41 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 1. TRACKS & ELECTIVES DROPDOWN LOGIC
+// 1. CLUSTERS & ELECTIVES DROPDOWN LOGIC
 // ==========================================
 const electivesData = {
-  "Academic Track": {
-    term1: [
-      "Computer Programming / ICT",
-      "Basic Entrepreneurship",
-      "Journalism & Creative Writing",
-      "Speech and Stage Arts"
-    ],
-    term2: [
-      "Web Development Basics",
-      "Financial Literacy & Accounting",
-      "Environmental Science",
-      "Digital Media & Arts"
-    ],
-    term3: [
-      "Advanced Computer Science",
-      "Business Plan & Innovation",
-      "Research & Data Analytics",
-      "Work Immersion Elective"
-    ]
-  },
-  "TVL Track": {
-    term1: [
-      "Computer Systems Servicing (CSS)",
-      "Cookery & Culinary Basics",
-      "Bread & Pastry Production",
-      "Electrical Installation & Maintenance"
-    ],
-    term2: [
-      "Network Fundamentals & Cabling",
-      "Food & Beverage Service",
-      "Commercial Cooking",
-      "Shielded Metal Arc Welding (SMAW)"
-    ],
-    term3: [
-      "TVL Work Immersion / OJT",
-      "Technical Drafting & CAD",
-      "Automotive Servicing",
-      "Agri-Crop Production"
-    ]
-  }
+  "Business": [
+    "Organizational Management"
+  ],
+  "Social Sciences": [
+    "Philippine Politics",
+    "Introduction to Philosophy",
+    "Malikhaing Pagsulat"
+  ],
+  "STEM": [
+    "Finite Math 2",
+    "Physics",
+    "Chemistry",
+    "Biology"
+  ],
+  "TechPro": [
+    "Bakery Operations",
+    "SMAW (Machining)",
+    "Automotive",
+    "FBO (Food and Beverage Operations)",
+    "Bread and Pastry Operations"
+  ]
 };
 
 function updateElectives() {
   const selectedTrackInput = document.querySelector('input[name="track"]:checked');
   if (!selectedTrackInput) return;
 
-  const data = electivesData[selectedTrackInput.value];
-  if (data) {
-    populateDropdown('term1Elective', data.term1, 'Select Term 1');
-    populateDropdown('term2Elective', data.term2, 'Select Term 2');
-    populateDropdown('term3Elective', data.term3, 'Select Term 3');
+  const options = electivesData[selectedTrackInput.value];
+  if (options) {
+    populateDropdown('term1Elective', options, 'Select Term 1');
+    populateDropdown('term2Elective', options, 'Select Term 2');
+    populateDropdown('term3Elective', options, 'Select Term 3');
   }
 }
 
@@ -199,7 +179,7 @@ document.getElementById('enrollmentForm')?.addEventListener('submit', async func
         <div><strong>Contact Number:</strong> ${formData.contact_number}</div>
         <div><strong>Previous School:</strong> ${formData.previous_school}</div>
         <hr style="margin: 8px 0; border: 0; border-top: 1px solid #ddd;">
-        <div><strong>Selected Track:</strong> ${formData.track}</div>
+        <div><strong>Selected Cluster:</strong> ${formData.track}</div>
         <div><strong>Term 1 Elective:</strong> ${formData.term1_elective}</div>
         <div><strong>Term 2 Elective:</strong> ${formData.term2_elective}</div>
         <div><strong>Term 3 Elective:</strong> ${formData.term3_elective}</div>
@@ -888,8 +868,8 @@ function updateSummaryCards(students) {
   const tvlElem = document.getElementById('statTvlCount');
 
   if (totalElem) totalElem.textContent = students.length;
-  if (acadElem) acadElem.textContent = students.filter(s => s.track === 'Academic Track').length;
-  if (tvlElem) tvlElem.textContent = students.filter(s => s.track === 'TVL Track').length;
+  if (acadElem) acadElem.textContent = students.filter(s => ['Business', 'Social Sciences', 'STEM', 'Academic Track'].includes(s.track)).length;
+  if (tvlElem) tvlElem.textContent = students.filter(s => ['TechPro', 'TVL Track'].includes(s.track)).length;
 }
 
 function applyDashboardFilters() {
@@ -924,7 +904,7 @@ function exportStudentsToCSV() {
     'Gmail',
     'Contact Number',
     'Previous School',
-    'Track',
+    'Cluster / Track',
     'Term 1 Elective',
     'Term 2 Elective',
     'Term 3 Elective',
@@ -978,6 +958,7 @@ function renderTableRows(students) {
   students.forEach(st => {
     const tr = document.createElement('tr');
     const isApproved = st.status === 'Approved';
+    const isTech = st.track === 'TechPro' || st.track === 'TVL Track';
 
     tr.innerHTML = `
       <td style="padding: 12px 16px; font-weight: 700; color: #800000;">${st.reference_number}</td>
@@ -986,7 +967,7 @@ function renderTableRows(students) {
       <td style="padding: 12px 16px;">${st.gmail}</td>
       <td style="padding: 12px 16px;">${st.contact_number}</td>
       <td style="padding: 12px 16px;">
-        <span class="${st.track === 'Academic Track' ? 'badge-track-acad' : 'badge-track-tvl'}">
+        <span class="${isTech ? 'badge-track-tvl' : 'badge-track-acad'}">
           ${st.track}
         </span>
       </td>
@@ -1074,10 +1055,12 @@ async function editStudent(id) {
         <label style="font-weight: 600;">Previous School:</label>
         <input id="swal-edit-prev" class="swal2-input" value="${student.previous_school || ''}" style="margin:0;">
         
-        <label style="font-weight: 600;">Track:</label>
+        <label style="font-weight: 600;">Cluster / Track:</label>
         <select id="swal-edit-track" class="swal2-input" style="margin:0;">
-          <option value="Academic Track" ${student.track === 'Academic Track' ? 'selected' : ''}>Academic Track</option>
-          <option value="TVL Track" ${student.track === 'TVL Track' ? 'selected' : ''}>TVL Track</option>
+          <option value="Business" ${student.track === 'Business' ? 'selected' : ''}>Business</option>
+          <option value="Social Sciences" ${student.track === 'Social Sciences' ? 'selected' : ''}>Social Sciences</option>
+          <option value="STEM" ${student.track === 'STEM' ? 'selected' : ''}>STEM</option>
+          <option value="TechPro" ${student.track === 'TechPro' ? 'selected' : ''}>TechPro</option>
         </select>
         
         <label style="font-weight: 600;">Term 1 Elective:</label>
